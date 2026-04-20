@@ -168,7 +168,7 @@ export function AppointmentHistory() {
                       <h3 className="font-semibold text-gray-900">{appointment.doctorName}</h3>
                       <p className="text-sm text-gray-600">{appointment.specialty}</p>
                     </div>
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                    <span className="px-3 py-1 bg-green-400 text-green-900 rounded-full text-sm font-semibold">
                       Completada
                     </span>
                   </div>
@@ -194,7 +194,7 @@ export function AppointmentHistory() {
                   </div>
 
                   {appointment.diagnosis && (
-                    <div className="bg-blue-50 border border-cyan-200 rounded-lg p-4 mb-3">
+                    <div className="bg-blue-100 border border-blue-400 rounded-lg p-4 mb-3">
                       <div className="flex items-start gap-2">
                         <FileText size={16} className="text-primary flex-shrink-0 mt-0.5" />
                         <div>

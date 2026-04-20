@@ -24,7 +24,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
         {/* Sección izquierda - Imagen */}
         <div className="hidden lg:flex w-1/2 bg-gray-100 relative max-h-[calc(100vh-120px)]">
           <img
-            src="/src/images/Rectangle 24.png"
+            src="/src/images/Rectangle 24.svg"
             alt="Doctor verificando paciente"
             className="w-full h-full object-cover"
           />
@@ -35,7 +35,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-0">
-              <img src="/src/images/Logo (1).png" alt="Vitalid Logo" className="w-[122px] h-[137px]" />
+              <img src="src/images/Logo (1).svg" alt="Vitalid Logo" className="w-[122px] h-[137px]" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900">Vitalid App</h1>
           </div>

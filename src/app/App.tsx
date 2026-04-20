@@ -164,7 +164,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-0">
-              <img src="/src/images/Logo (1).png" alt="Vitalid Logo" className="w-[76px] h-[86px]" />
+              <img src="src/images/Logo (1).svg" alt="Vitalid Logo" className="w-[76px] h-[86px]" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Vitalid App</h1>
                 <p className="text-xs text-gray-500">{userType === 'doctor' ? 'Portal Médico' : 'Portal Paciente'}</p>
@@ -435,8 +435,8 @@ export default function App() {
                 <div>
                   <label className="text-sm text-gray-600">Alergias</label>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    <span className="px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm">Penicilina</span>
-                    <span className="px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm">Maní</span>
+                    <span className="px-3 py-1 bg-red-400 text-red-900 rounded-full text-sm font-medium">Penicilina</span>
+                    <span className="px-3 py-1 bg-red-400 text-red-900 rounded-full text-sm font-medium">Maní</span>
                   </div>
                 </div>
               </div>
