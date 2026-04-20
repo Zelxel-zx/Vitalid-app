@@ -149,8 +149,8 @@ export function MedicationTracker() {
                       onClick={() => toggleMedication(medication.id, time)}
                       className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
                         taken
-                          ? 'bg-green-50 border border-green-200'
-                          : 'bg-gray-50 border border-gray-200 hover:border-teal-300'
+                          ? 'bg-green-100 border border-green-400'
+                          : 'bg-gray-200 border border-gray-400 hover:border-teal-300'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -158,7 +158,7 @@ export function MedicationTracker() {
                         <span className="font-medium text-gray-700">{time}</span>
                       </div>
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                        taken ? 'bg-green-500' : 'bg-gray-300'
+                        taken ? 'bg-green-600' : 'bg-gray-300'
                       }`}>
                         {taken && <Check size={16} className="text-white" />}
                       </div>
@@ -168,26 +168,26 @@ export function MedicationTracker() {
               </div>
 
               {medication.sideEffects && medication.sideEffects.length > 0 && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Efectos secundarios registrados:</p>
                   <div className="flex flex-wrap gap-2">
                     {medication.sideEffects.map((effect, idx) => (
-                      <span key={idx} className="text-sm text-yellow-800">• {effect}</span>
+                      <span key={idx} className="text-sm text-yellow-900">• {effect}</span>
                     ))}
                   </div>
                 </div>
               )}
 
               <div className={`p-3 rounded-lg flex items-start gap-3 ${
-                lowStock ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
+                lowStock ? 'bg-red-100 border border-red-400' : 'bg-gray-50'
               }`}>
-                {lowStock && <AlertCircle className="text-red-500 flex-shrink-0" size={20} />}
+                {lowStock && <AlertCircle className="text-red-700 flex-shrink-0" size={20} />}
                 <div>
-                  <p className={`text-sm font-medium ${lowStock ? 'text-red-800' : 'text-gray-700'}`}>
+                  <p className={`text-sm font-medium ${lowStock ? 'text-red-900' : 'text-gray-700'}`}>
                     {medication.pillsRemaining} pastillas restantes ({daysRemaining} días)
                   </p>
                   {lowStock && (
-                    <p className="text-sm text-red-600 mt-1">
+                    <p className="text-sm text-red-700 mt-1">
                       ⚠️ Stock bajo - Comprar pronto
                     </p>
                   )}

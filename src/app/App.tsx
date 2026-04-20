@@ -163,10 +163,8 @@ export default function App() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Activity className="text-white" size={24} />
-              </div>
+            <div className="flex items-center gap-0">
+              <img src="/src/images/Logo (1).png" alt="Vitalid Logo" className="w-[76px] h-[86px]" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Vitalid App</h1>
                 <p className="text-xs text-gray-500">{userType === 'doctor' ? 'Portal Médico' : 'Portal Paciente'}</p>

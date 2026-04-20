@@ -34,13 +34,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
         <div className="w-full lg:w-1/2 bg-white p-8 lg:p-12">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-                <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6c-2.5 3-4 4.5-4 6.5 0 2.8 1.79 5 4 5s4-2.2 4-5c0-2-1.5-3.5-4-6.5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10c1-1 2-1.5 4-1.5s3 .5 4 1.5" />
-                </svg>
-              </div>
+            <div className="flex items-center justify-center mb-0">
+              <img src="/src/images/Logo (1).png" alt="Vitalid Logo" className="w-[122px] h-[137px]" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900">Vitalid App</h1>
           </div>
