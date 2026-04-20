@@ -8,6 +8,7 @@ import { ProgressChart } from './components/ProgressChart';
 import { MedicationTracker } from './components/MedicationTracker';
 import { AppointmentBooking } from './components/AppointmentBooking';
 import { AppointmentHistory } from './components/AppointmentHistory';
+import logo from '../images/Logo (1).svg';
 import { DoctorDashboard } from './components/DoctorDashboard';
 
 type View = 'home' | 'messages' | 'treatments' | 'medications' | 'appointments' | 'history' | 'profile' | 'patients';
@@ -164,7 +165,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-0">
-              <img src="src/images/Logo (1).svg" alt="Vitalid Logo" className="w-[76px] h-[86px]" />
+              <img src={logo} alt="Vitalid Logo" className="w-[76px] h-[86px]" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Vitalid App</h1>
                 <p className="text-xs text-gray-500">{userType === 'doctor' ? 'Portal Médico' : 'Portal Paciente'}</p>
