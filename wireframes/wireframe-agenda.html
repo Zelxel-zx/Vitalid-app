@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireframe - Agenda de Citas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: #f5f5f5;
+            color: #333333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            padding: 0 20px;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333333;
+        }
+
+        .header-back {
+            width: 40px;
+            height: 40px;
+            background-color: #f0f0f0;
+            border: 1px solid #cccccc;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 16px;
+            padding: 0 20px;
+        }
+
+        .empty-state {
+            background-color: #f0f0f0;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            padding: 32px 20px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            width: 48px;
+            height: 48px;
+            background-color: #e6e6e6;
+            border-radius: 6px;
+            margin: 0 auto 12px;
+        }
+
+        .empty-text {
+            font-size: 14px;
+            color: #666666;
+        }
+
+        /* Appointment Cards */
+        .appointments-list {
+            display: grid;
+            gap: 16px;
+            padding: 0 20px;
+        }
+
+        .appointment-card {
+            background-color: #ffffff;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            gap: 16px;
+        }
+
+        .appointment-avatar {
+            width: 64px;
+            height: 64px;
+            background-color: #e6e6e6;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .appointment-content {
+            flex: 1;
+        }
+
+        .appointment-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .appointment-doctor {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333333;
+        }
+
+        .appointment-specialty {
+            font-size: 13px;
+            color: #666666;
+            margin-top: 2px;
+        }
+
+        .appointment-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background-color: #f0f0f0;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #333333;
+        }
+
+        .appointment-status.completed {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .appointment-status.upcoming {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .status-icon {
+            width: 10px;
+            height: 10px;
+            background-color: currentColor;
+            border-radius: 50%;
+        }
+
+        .appointment-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #666666;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .detail-icon {
+            width: 14px;
+            height: 14px;
+            background-color: #cccccc;
+            border-radius: 2px;
+        }
+
+        /* Diagnosis & Notes */
+        .diagnosis-box {
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .diagnosis-label {
+            font-weight: 600;
+            color: #1565c0;
+            margin-bottom: 4px;
+        }
+
+        .diagnosis-text {
+            color: #0d47a1;
+        }
+
+        .notes-box {
+            background-color: #fafafa;
+            border: 1px solid #e6e6e6;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 13px;
+            color: #555555;
+            line-height: 1.5;
+        }
+
+        /* Actions */
+        .appointment-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-start;
+        }
+
+        .action-button {
+            padding: 6px 14px;
+            background-color: #f5f5f5;
+            border: 1px solid #cccccc;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #333333;
+            cursor: pointer;
+        }
+
+        .action-button.primary {
+            background-color: #cccccc;
+            color: #ffffff;
+            border-color: #999999;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 12px;
+            }
+
+            .header {
+                padding: 0;
+            }
+
+            .section-title {
+                padding: 0;
+            }
+
+            .appointments-list {
+                padding: 0;
+            }
+
+            .appointment-card {
+                flex-direction: column;
+            }
+
+            .appointment-avatar {
+                width: 48px;
+                height: 48px;
+            }
+
+            .appointment-details {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-back"></div>
+            <div class="header-title">Mis Citas</div>
+            <div style="width: 40px;"></div>
+        </div>
+
+        <!-- Upcoming Appointments -->
+        <div class="section">
+            <h2 class="section-title">Próximas Citas</h2>
+            <div class="appointments-list">
+                <!-- Appointment 1 -->
+                <div class="appointment-card">
+                    <div class="appointment-avatar"></div>
+                    <div class="appointment-content">
+                        <div class="appointment-header">
+                            <div>
+                                <div class="appointment-doctor">Dr. Sarah Johnson</div>
+                                <div class="appointment-specialty">Cardiología</div>
+                            </div>
+                            <div class="appointment-status upcoming">
+                                <span class="status-icon"></span>
+                                Próxima
+                            </div>
+                        </div>
+
+                        <div class="appointment-details">
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>15 May 2026</span>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>14:00</span>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>Presencial</span>
+                            </div>
+                        </div>
+
+                        <div class="appointment-actions">
+                            <button class="action-button">Cambiar fecha</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appointment 2 -->
+                <div class="appointment-card">
+                    <div class="appointment-avatar"></div>
+                    <div class="appointment-content">
+                        <div class="appointment-header">
+                            <div>
+                                <div class="appointment-doctor">Dr. Michael Chen</div>
+                                <div class="appointment-specialty">Endocrinología</div>
+                            </div>
+                            <div class="appointment-status upcoming">
+                                <span class="status-icon"></span>
+                                Próxima
+                            </div>
+                        </div>
+
+                        <div class="appointment-details">
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>25 Apr 2026</span>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>10:00</span>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>Videollamada</span>
+                            </div>
+                        </div>
+
+                        <div class="appointment-actions">
+                            <button class="action-button primary">Unirse a videollamada</button>
+                            <button class="action-button">Cambiar fecha</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Past Appointments -->
+        <div class="section">
+            <h2 class="section-title">Consultas Pasadas</h2>
+            <div class="appointments-list">
+                <!-- Past Appointment 1 -->
+                <div class="appointment-card">
+                    <div class="appointment-avatar"></div>
+                    <div class="appointment-content">
+                        <div class="appointment-header">
+                            <div>
+                                <div class="appointment-doctor">Dr. Emily Rodriguez</div>
+                                <div class="appointment-specialty">Medicina General</div>
+                            </div>
+                            <div class="appointment-status completed">
+                                <span class="status-icon"></span>
+                                Completada
+                            </div>
+                        </div>
+
+                        <div class="appointment-details">
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>20 Mar 2026</span>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>09:30</span>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>Presencial</span>
+                            </div>
+                        </div>
+
+                        <div class="diagnosis-box">
+                            <div class="diagnosis-label">Diagnóstico</div>
+                            <div class="diagnosis-text">Chequeo anual - Todo normal</div>
+                        </div>
+
+                        <div class="notes-box">
+                            <strong>Notas:</strong> Continuar con estilo de vida saludable. Próxima cita en 6 meses.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Past Appointment 2 -->
+                <div class="appointment-card">
+                    <div class="appointment-avatar"></div>
+                    <div class="appointment-content">
+                        <div class="appointment-header">
+                            <div>
+                                <div class="appointment-doctor">Dr. Sarah Johnson</div>
+                                <div class="appointment-specialty">Cardiología</div>
+                            </div>
+                            <div class="appointment-status completed">
+                                <span class="status-icon"></span>
+                                Completada
+                            </div>
+                        </div>
+
+                        <div class="appointment-details">
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>10 Feb 2026</span>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>15:00</span>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon"></div>
+                                <span>Presencial</span>
+                            </div>
+                        </div>
+
+                        <div class="diagnosis-box">
+                            <div class="diagnosis-label">Diagnóstico</div>
+                            <div class="diagnosis-text">Hipertensión - Control de seguimiento</div>
+                        </div>
+
+                        <div class="notes-box">
+                            <strong>Notas:</strong> Presión arterial mejorada con medicación. Mantener tratamiento actual.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

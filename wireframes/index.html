@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireframes - Vitalid Health App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
+            color: #333333;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .logo-box {
+            width: 56px;
+            height: 56px;
+            background-color: #cccccc;
+            border-radius: 8px;
+        }
+
+        .app-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333333;
+        }
+
+        .header-subtitle {
+            font-size: 14px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        .wireframes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .wireframe-card {
+            background-color: #ffffff;
+            border: 1px solid #e6e6e6;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .wireframe-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+            border-color: #cccccc;
+        }
+
+        .wireframe-preview {
+            width: 100%;
+            height: 280px;
+            background-color: #f5f5f5;
+            border-bottom: 1px solid #e6e6e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .preview-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: #999999;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    45deg,
+                    #f5f5f5,
+                    #f5f5f5 10px,
+                    #eeeeee 10px,
+                    #eeeeee 20px
+                );
+        }
+
+        .preview-icon {
+            width: 48px;
+            height: 48px;
+            background-color: #d0d0d0;
+            border-radius: 6px;
+        }
+
+        .preview-text {
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .wireframe-content {
+            padding: 24px;
+        }
+
+        .wireframe-number {
+            display: inline-block;
+            background-color: #cccccc;
+            color: #ffffff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .wireframe-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 8px;
+        }
+
+        .wireframe-description {
+            font-size: 13px;
+            color: #666666;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .wireframe-features {
+            margin-bottom: 16px;
+        }
+
+        .feature-item {
+            font-size: 12px;
+            color: #555555;
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .feature-item:before {
+            content: "▪";
+            position: absolute;
+            left: 4px;
+            color: #cccccc;
+        }
+
+        .wireframe-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #cccccc;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-align: center;
+            width: 100%;
+            border: 1px solid #999999;
+        }
+
+        .wireframe-link:hover {
+            background-color: #b3b3b3;
+            opacity: 0.9;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 1px solid #e6e6e6;
+            color: #999999;
+            font-size: 12px;
+        }
+
+        .info-banner {
+            background-color: #f5f5f5;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 32px;
+            font-size: 14px;
+            color: #555555;
+            line-height: 1.6;
+        }
+
+        .info-banner strong {
+            color: #333333;
+        }
+
+        @media (max-width: 768px) {
+            .wireframes-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                margin-bottom: 32px;
+            }
+
+            .app-title {
+                font-size: 24px;
+            }
+
+            .wireframe-preview {
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-section">
+                <div class="logo-box"></div>
+                <div class="app-title">Vitalid</div>
+            </div>
+            <h1 style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">Wireframes de Pantallas</h1>
+            <p class="header-subtitle">Estructura y layout de componentes principales del sistema</p>
+        </div>
+
+        <!-- Info Banner -->
+        <div class="info-banner">
+            <strong>📋 Acerca de estos wireframes:</strong><br>
+            Estos wireframes muestran la estructura visual real basada en los componentes React del proyecto. Utilizan únicamente colores en escala de grises (#ffffff, #f0f0f0, #cccccc, #666666, #333333) sin elementos de branding, logos a color, o imágenes reales. Cada wireframe indica claramente dónde irían los elementos principales.
+        </div>
+
+        <!-- Wireframes Grid -->
+        <div class="wireframes-grid">
+            <!-- Wireframe 1: Registro -->
+            <div class="wireframe-card">
+                <div class="wireframe-preview">
+                    <div class="preview-placeholder">
+                        <div class="preview-icon"></div>
+                        <div class="preview-text">Formulario de Registro<br>y Login</div>
+                    </div>
+                </div>
+                <div class="wireframe-content">
+                    <div class="wireframe-number">1</div>
+                    <h3 class="wireframe-title">Registro / Login</h3>
+                    <p class="wireframe-description">
+                        Formulario para autenticación y registro de nuevos usuarios.
+                    </p>
+                    <div class="wireframe-features">
+                        <div class="feature-item">Botones para cambiar entre Login/Registro</div>
+                        <div class="feature-item">Campos de email, contraseña</div>
+                        <div class="feature-item">Nombre y teléfono en registro</div>
+                        <div class="feature-item">Selección tipo de usuario (Paciente/Doctor)</div>
+                        <div class="feature-item">Link de recuperación de contraseña</div>
+                    </div>
+                    <a href="wireframe-registro.html" class="wireframe-link">Ver Wireframe →</a>
+                </div>
+            </div>
+
+            <!-- Wireframe 2: Medicamentos -->
+            <div class="wireframe-card">
+                <div class="wireframe-preview">
+                    <div class="preview-placeholder">
+                        <div class="preview-icon"></div>
+                        <div class="preview-text">Checklist de<br>Medicamentos</div>
+                    </div>
+                </div>
+                <div class="wireframe-content">
+                    <div class="wireframe-number">2</div>
+                    <h3 class="wireframe-title">Checklist Medicamentos</h3>
+                    <p class="wireframe-description">
+                        Sistema de seguimiento diario de medicamentos con checkboxes.
+                    </p>
+                    <div class="wireframe-features">
+                        <div class="feature-item">Card de cumplimiento con porcentaje</div>
+                        <div class="feature-item">Barra de progreso diario</div>
+                        <div class="feature-item">Lista de medicamentos con dosis</div>
+                        <div class="feature-item">Checkboxes por horario</div>
+                        <div class="feature-item">Contador de píldoras restantes</div>
+                        <div class="feature-item">Indicador de stock bajo</div>
+                    </div>
+                    <a href="wireframe-checklist-medicamentos.html" class="wireframe-link">Ver Wireframe →</a>
+                </div>
+            </div>
+
+            <!-- Wireframe 3: Chat -->
+            <div class="wireframe-card">
+                <div class="wireframe-preview">
+                    <div class="preview-placeholder">
+                        <div class="preview-icon"></div>
+                        <div class="preview-text">Chat con<br>Doctor</div>
+                    </div>
+                </div>
+                <div class="wireframe-content">
+                    <div class="wireframe-number">3</div>
+                    <h3 class="wireframe-title">Chat con Doctor</h3>
+                    <p class="wireframe-description">
+                        Interfaz de mensajería directa con información del doctor.
+                    </p>
+                    <div class="wireframe-features">
+                        <div class="feature-item">Header con avatar y estado del doctor</div>
+                        <div class="feature-item">Botones de llamada y videollamada</div>
+                        <div class="feature-item">Historial de mensajes</div>
+                        <div class="feature-item">Burbujas diferenciadas (doctor/paciente)</div>
+                        <div class="feature-item">Input de mensaje con adjuntos</div>
+                        <div class="feature-item">Botones para foto y documentos</div>
+                    </div>
+                    <a href="wireframe-chat-doctor.html" class="wireframe-link">Ver Wireframe →</a>
+                </div>
+            </div>
+
+            <!-- Wireframe 4: Agenda -->
+            <div class="wireframe-card">
+                <div class="wireframe-preview">
+                    <div class="preview-placeholder">
+                        <div class="preview-icon"></div>
+                        <div class="preview-text">Agenda de<br>Citas</div>
+                    </div>
+                </div>
+                <div class="wireframe-content">
+                    <div class="wireframe-number">4</div>
+                    <h3 class="wireframe-title">Agenda de Citas</h3>
+                    <p class="wireframe-description">
+                        Visualización de próximas citas y historial de consultas pasadas.
+                    </p>
+                    <div class="wireframe-features">
+                        <div class="feature-item">Sección de próximas citas</div>
+                        <div class="feature-item">Sección de consultas pasadas</div>
+                        <div class="feature-item">Avatar y datos del doctor</div>
+                        <div class="feature-item">Fecha, hora y tipo de consulta</div>
+                        <div class="feature-item">Diagnóstico y notas para completadas</div>
+                        <div class="feature-item">Botones de acción (cambiar, unirse)</div>
+                    </div>
+                    <a href="wireframe-agenda.html" class="wireframe-link">Ver Wireframe →</a>
+                </div>
+            </div>
+
+            <!-- Wireframe 5: Reserva -->
+            <div class="wireframe-card">
+                <div class="wireframe-preview">
+                    <div class="preview-placeholder">
+                        <div class="preview-icon"></div>
+                        <div class="preview-text">Reserva de<br>Cita</div>
+                    </div>
+                </div>
+                <div class="wireframe-content">
+                    <div class="wireframe-number">5</div>
+                    <h3 class="wireframe-title">Reserva de Cita</h3>
+                    <p class="wireframe-description">
+                        Flujo completo para seleccionar doctor, fecha y horario de consulta.
+                    </p>
+                    <div class="wireframe-features">
+                        <div class="feature-item">Filtros por especialidad</div>
+                        <div class="feature-item">Lista de doctores con rating</div>
+                        <div class="feature-item">Selección de tipo de consulta</div>
+                        <div class="feature-item">Selector de fecha con navegación</div>
+                        <div class="feature-item">Grid de horarios disponibles</div>
+                        <div class="feature-item">Botón de confirmación</div>
+                    </div>
+                    <a href="wireframe-reserva-cita.html" class="wireframe-link">Ver Wireframe →</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Wireframes de Vitalid - Proyecto Health App Mockups</p>
+            <p style="margin-top: 8px; font-size: 11px; color: #cccccc;">Estructura visual basada en componentes React reales</p>
+        </div>
+    </div>
+</body>
+</html>

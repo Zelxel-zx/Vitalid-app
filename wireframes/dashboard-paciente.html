@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitalid - Dashboard Paciente</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f3f3f5;
+            color: #030213;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            display: inline-block;
+            background-color: white;
+            color: #00B5BD;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            z-index: 100;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background-color: #030213;
+            color: white;
+            padding: 1.5rem 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00B5BD;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin: 0;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 0.75rem 1.5rem;
+            color: #ccc;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background-color: rgba(0, 181, 189, 0.1);
+            color: #00B5BD;
+            border-left-color: #00B5BD;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+        }
+
+        header {
+            background: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            color: #030213;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #00B5BD;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .main {
+            padding: 2rem;
+        }
+
+        .welcome-section {
+            background: linear-gradient(135deg, #00B5BD 0%, #0096a3 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .welcome-section h2 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome-section p {
+            opacity: 0.95;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h3 {
+            color: #00B5BD;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-item {
+            padding: 1rem;
+            border-bottom: 1px solid #f3f3f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-item:last-child {
+            border-bottom: none;
+        }
+
+        .card-label {
+            font-weight: 500;
+            color: #030213;
+        }
+
+        .card-value {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .treatment-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background-color: rgba(0, 181, 189, 0.1);
+            color: #00B5BD;
+        }
+
+        .status-pending {
+            background-color: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+        }
+
+        .status-urgent {
+            background-color: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #00B5BD;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #0096a3;
+        }
+
+        .btn-secondary {
+            background-color: #e0e0e0;
+            color: #030213;
+        }
+
+        .btn-secondary:hover {
+            background-color: #d0d0d0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Volver</a>
+
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">🏥 Vitalid</div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active">🏠 Inicio</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">💊 Medicamentos</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">📅 Agendar Cita</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">📋 Mis Citas</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">💬 Mensajes</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">👤 Mi Perfil</a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <header>
+                <h1>Dashboard</h1>
+                <div class="user-info">
+                    <div>
+                        <div class="card-label">Juan Pérez</div>
+                        <div class="card-value">Paciente</div>
+                    </div>
+                    <div class="avatar">JP</div>
+                </div>
+            </header>
+
+            <main class="main">
+                <section class="welcome-section">
+                    <h2>¡Bienvenido de vuelta, Juan!</h2>
+                    <p>Tienes todo bajo control. Aquí está tu resumen de hoy.</p>
+                </section>
+
+                <div class="grid">
+                    <!-- Tratamientos Activos -->
+                    <article class="card">
+                        <h3>💊 Tratamientos Activos</h3>
+                        
+                        <div class="card-item">
+                            <div>
+                                <div class="card-label">Hipertensión</div>
+                                <div class="card-value">Iniciado: 15 ene 2024</div>
+                            </div>
+                            <span class="treatment-status status-active">Activo</span>
+                        </div>
+
+                        <div class="card-item">
+                            <div>
+                                <div class="card-label">Diabetes Tipo 2</div>
+                                <div class="card-value">Iniciado: 22 dic 2023</div>
+                            </div>
+                            <span class="treatment-status status-active">Activo</span>
+                        </div>
+
+                        <div class="card-item">
+                            <div>
+                                <div class="card-label">Colesterol Alto</div>
+                                <div class="card-value">Iniciado: 10 feb 2024</div>
+                            </div>
+                            <span class="treatment-status status-active">Activo</span>
+                        </div>
+
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-secondary">Ver detalles</button>
+                        </div>
+                    </article>
+
+                    <!-- Próximas Citas -->
+                    <article class="card">
+                        <h3>📅 Próximas Citas</h3>
+                        
+                        <div class="card-item">
+                            <div>
+                                <div class="card-label">Dr. Carlos López</div>
+                                <div class="card-value">Cardiología</div>
+                                <div class="card-value">Mañana, 14:30</div>
+                            </div>
+                            <span class="treatment-status status-pending">Próxima</span>
+                        </div>
+
+                        <div class="card-item">
+                            <div>
+                                <div class="card-label">Dra. María González</div>
+                                <div class="card-value">Endocrinología</div>
+                                <div class="card-value">27 abr, 10:00</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 1rem;">
+                            <button class="btn">Agendar nueva cita</button>
+                        </div>
+                    </article>
+
+                    <!-- Medicamentos Pendientes -->
+                    <article class="card">
+                        <h3>⏰ Medicamentos Pendientes</h3>
+                        
+                        <div class="card-item">
+                            <div>
+                                <div class="card-label">Metformina 500mg</div>
+                                <div class="card-value">Próxima dosis: Hoy 20:00</div>
+                            </div>
+                            <span class="treatment-status status-urgent">Urgente</span>
+                        </div>
+
+                        <div class="card-item">
+                            <div>
+                                <div class="card-label">Losartán 50mg</div>
+                                <div class="card-value">Próxima dosis: Mañana 08:00</div>
+                            </div>
+                        </div>
+
+                        <div class="card-item">
+                            <div>
+                                <div class="card-label">Atorvastatina 20mg</div>
+                                <div class="card-value">Próxima dosis: Mañana 21:00</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-secondary">Ir a medicamentos</button>
+                        </div>
+                    </article>
+                </div>
+            </main>
+        </div>
+    </div>
+</body>
+</html>

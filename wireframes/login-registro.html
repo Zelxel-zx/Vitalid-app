@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitalid - Login/Registro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #00B5BD 0%, #0096a3 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 450px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #00B5BD;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #f3f3f5;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 0.75rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .tab-button.active {
+            color: #00B5BD;
+            border-bottom-color: #00B5BD;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #030213;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #00B5BD;
+            box-shadow: 0 0 0 3px rgba(0, 181, 189, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .button {
+            width: 100%;
+            padding: 0.85rem;
+            background-color: #00B5BD;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .button:hover {
+            background-color: #0096a3;
+        }
+
+        .help-text {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 1.5rem;
+        }
+
+        .help-text a {
+            color: #00B5BD;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        /* Navigation */
+        .navigation {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+        }
+
+        .navigation a {
+            display: inline-block;
+            background-color: white;
+            color: #00B5BD;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .navigation a:hover {
+            background-color: #f3f3f5;
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 1.5rem 1.25rem;
+            }
+
+            .logo {
+                font-size: 1.5rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="navigation">
+        <a href="index.html">← Volver</a>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div class="logo">🏥 Vitalid</div>
+                <div class="subtitle">Plataforma de Telemedicina</div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('login')">Iniciar Sesión</button>
+                <button class="tab-button" onclick="switchTab('registro')">Registrarse</button>
+            </div>
+
+            <!-- Login Form -->
+            <form class="form-section active" id="login">
+                <div class="form-group">
+                    <label for="email-login">Email</label>
+                    <input type="email" id="email-login" placeholder="tu@email.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password-login">Contraseña</label>
+                    <input type="password" id="password-login" placeholder="••••••••" required>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="remember">
+                    <label for="remember" style="margin: 0; cursor: pointer;">Recuérdame</label>
+                </div>
+
+                <button class="button" type="submit">Iniciar Sesión</button>
+
+                <div class="help-text">
+                    ¿No tienes cuenta? <a href="#" onclick="switchTab('registro'); return false;">Regístrate aquí</a>
+                </div>
+
+                <div class="help-text">
+                    <a href="#" style="margin-top: 0.5rem; display: block;">¿Olvidaste tu contraseña?</a>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form class="form-section" id="registro">
+                <div class="form-group">
+                    <label for="fullname">Nombre Completo</label>
+                    <input type="text" id="fullname" placeholder="Juan Pérez" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email-register">Email</label>
+                    <input type="email" id="email-register" placeholder="tu@email.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Teléfono</label>
+                    <input type="tel" id="phone" placeholder="+34 612 345 678" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password-register">Contraseña</label>
+                    <input type="password" id="password-register" placeholder="••••••••" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm-password">Confirmar Contraseña</label>
+                    <input type="password" id="confirm-password" placeholder="••••••••" required>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="terms" required>
+                    <label for="terms" style="margin: 0; cursor: pointer;">Acepto los términos y condiciones</label>
+                </div>
+
+                <button class="button" type="submit">Crear Cuenta</button>
+
+                <div class="help-text">
+                    ¿Ya tienes cuenta? <a href="#" onclick="switchTab('login'); return false;">Inicia sesión aquí</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all forms
+            document.getElementById('login').classList.remove('active');
+            document.getElementById('registro').classList.remove('active');
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected form
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

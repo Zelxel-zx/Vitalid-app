@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireframe - Reserva de Cita</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: #f5f5f5;
+            color: #333333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            padding: 0 20px;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333333;
+        }
+
+        .header-back {
+            width: 40px;
+            height: 40px;
+            background-color: #f0f0f0;
+            border: 1px solid #cccccc;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* View: Doctor Selection */
+        .view {
+            display: block;
+        }
+
+        .view.hidden {
+            display: none;
+        }
+
+        /* Specialties Filter */
+        .specialty-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            padding: 0 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .specialty-button {
+            padding: 8px 16px;
+            background-color: #f5f5f5;
+            border: 1px solid #e6e6e6;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #666666;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .specialty-button.active {
+            background-color: #cccccc;
+            color: #ffffff;
+            border-color: #999999;
+        }
+
+        /* Doctors List */
+        .doctors-list {
+            display: grid;
+            gap: 16px;
+            padding: 0 20px;
+        }
+
+        .doctor-card {
+            background-color: #ffffff;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            gap: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .doctor-card:hover {
+            border-color: #cccccc;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .doctor-avatar {
+            width: 72px;
+            height: 72px;
+            background-color: #e6e6e6;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .doctor-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .doctor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+
+        .doctor-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333333;
+        }
+
+        .doctor-rating {
+            font-size: 13px;
+            color: #f59e0b;
+        }
+
+        .doctor-specialty {
+            font-size: 13px;
+            color: #666666;
+            margin-bottom: 8px;
+        }
+
+        .doctor-fee {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333333;
+        }
+
+        /* View: Appointment Details */
+        .doctor-detail {
+            background-color: #ffffff;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            padding: 24px;
+            margin: 0 20px 24px;
+        }
+
+        .detail-back {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #cccccc;
+            cursor: pointer;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .back-arrow {
+            width: 16px;
+            height: 16px;
+            background-color: #cccccc;
+        }
+
+        .detail-header {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e6e6e6;
+        }
+
+        .detail-avatar {
+            width: 80px;
+            height: 80px;
+            background-color: #e6e6e6;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .detail-info {
+            flex: 1;
+        }
+
+        .detail-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 4px;
+        }
+
+        .detail-specialty {
+            font-size: 14px;
+            color: #666666;
+            margin-bottom: 8px;
+        }
+
+        .detail-rating {
+            font-size: 13px;
+            color: #f59e0b;
+        }
+
+        /* Consultation Type */
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 12px;
+        }
+
+        .consultation-types {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .consultation-option {
+            padding: 16px;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            background-color: #ffffff;
+            transition: all 0.2s;
+        }
+
+        .consultation-option:hover {
+            border-color: #cccccc;
+        }
+
+        .consultation-option.selected {
+            border: 2px solid #cccccc;
+            background-color: #f5f5f5;
+        }
+
+        .consultation-icon {
+            width: 32px;
+            height: 32px;
+            background-color: #e6e6e6;
+            border-radius: 6px;
+            margin: 0 auto 8px;
+        }
+
+        .consultation-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 4px;
+        }
+
+        .consultation-price {
+            font-size: 12px;
+            color: #666666;
+        }
+
+        /* Date Selection */
+        .date-selector {
+            background-color: #f5f5f5;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .date-nav {
+            width: 32px;
+            height: 32px;
+            background-color: #e6e6e6;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .date-display {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333333;
+            flex: 1;
+            text-align: center;
+        }
+
+        /* Time Slots */
+        .time-slots {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .time-slot {
+            padding: 10px 8px;
+            background-color: #f5f5f5;
+            border: 1px solid #e6e6e6;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: #333333;
+            cursor: pointer;
+        }
+
+        .time-slot:hover:not(.disabled) {
+            border-color: #cccccc;
+        }
+
+        .time-slot.selected {
+            background-color: #cccccc;
+            color: #ffffff;
+            border-color: #999999;
+        }
+
+        .time-slot.disabled {
+            background-color: #e6e6e6;
+            color: #999999;
+            cursor: not-allowed;
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .button {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #cccccc;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .button.primary {
+            background-color: #cccccc;
+            color: #ffffff;
+            border-color: #999999;
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+            .consultation-types {
+                grid-template-columns: 1fr;
+            }
+
+            .time-slots {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .detail-header {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .doctor-card {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .doctor-header {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-back"></div>
+            <div class="header-title">Reservar Cita</div>
+            <div style="width: 40px;"></div>
+        </div>
+
+        <!-- VIEW 1: Doctor Selection -->
+        <div id="doctors-view" class="view">
+            <!-- Specialty Filters -->
+            <div class="specialty-filters">
+                <button class="specialty-button active">Todos</button>
+                <button class="specialty-button">Cardiología</button>
+                <button class="specialty-button">Endocrinología</button>
+                <button class="specialty-button">Med. General</button>
+                <button class="specialty-button">Dermatología</button>
+                <button class="specialty-button">Pediatría</button>
+            </div>
+
+            <!-- Doctors List -->
+            <div class="doctors-list">
+                <!-- Doctor 1 -->
+                <div class="doctor-card" onclick="showAppointmentDetails()">
+                    <div class="doctor-avatar"></div>
+                    <div class="doctor-info">
+                        <div class="doctor-header">
+                            <div class="doctor-name">Dr. Sarah Johnson</div>
+                            <div class="doctor-rating">★ 4.9 / 5.0</div>
+                        </div>
+                        <div class="doctor-specialty">Cardiología</div>
+                        <div class="doctor-fee">$80 por consulta</div>
+                    </div>
+                </div>
+
+                <!-- Doctor 2 -->
+                <div class="doctor-card" onclick="showAppointmentDetails()">
+                    <div class="doctor-avatar"></div>
+                    <div class="doctor-info">
+                        <div class="doctor-header">
+                            <div class="doctor-name">Dr. Michael Chen</div>
+                            <div class="doctor-rating">★ 4.8 / 5.0</div>
+                        </div>
+                        <div class="doctor-specialty">Endocrinología</div>
+                        <div class="doctor-fee">$75 por consulta</div>
+                    </div>
+                </div>
+
+                <!-- Doctor 3 -->
+                <div class="doctor-card" onclick="showAppointmentDetails()">
+                    <div class="doctor-avatar"></div>
+                    <div class="doctor-info">
+                        <div class="doctor-header">
+                            <div class="doctor-name">Dr. Emily Rodriguez</div>
+                            <div class="doctor-rating">★ 4.7 / 5.0</div>
+                        </div>
+                        <div class="doctor-specialty">Medicina General</div>
+                        <div class="doctor-fee">$60 por consulta</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: Appointment Details -->
+        <div id="appointment-view" class="view hidden">
+            <div class="doctor-detail">
+                <!-- Back Button -->
+                <div class="detail-back" onclick="showDoctorList()">
+                    <div class="back-arrow"></div>
+                    Volver a la lista
+                </div>
+
+                <!-- Doctor Header -->
+                <div class="detail-header">
+                    <div class="detail-avatar"></div>
+                    <div class="detail-info">
+                        <div class="detail-name">Dr. Sarah Johnson</div>
+                        <div class="detail-specialty">Cardiología</div>
+                        <div class="detail-rating">★ 4.9 / 5.0</div>
+                    </div>
+                </div>
+
+                <!-- Consultation Type -->
+                <div class="form-group">
+                    <label class="form-label">Tipo de consulta</label>
+                    <div class="consultation-types">
+                        <div class="consultation-option selected" onclick="selectConsultationType(this)">
+                            <div class="consultation-icon"></div>
+                            <div class="consultation-name">Presencial</div>
+                            <div class="consultation-price">$80</div>
+                        </div>
+                        <div class="consultation-option" onclick="selectConsultationType(this)">
+                            <div class="consultation-icon"></div>
+                            <div class="consultation-name">Videollamada</div>
+                            <div class="consultation-price">$70</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Date Selection -->
+                <div class="form-group">
+                    <label class="form-label">Selecciona una fecha</label>
+                    <div class="date-selector">
+                        <div class="date-nav"></div>
+                        <div class="date-display">Wed, May 15, 2026</div>
+                        <div class="date-nav"></div>
+                    </div>
+                </div>
+
+                <!-- Time Slots -->
+                <div class="form-group">
+                    <label class="form-label">Horarios disponibles</label>
+                    <div class="time-slots">
+                        <div class="time-slot" onclick="selectTime(this)">09:00</div>
+                        <div class="time-slot" onclick="selectTime(this)">09:30</div>
+                        <div class="time-slot disabled">10:00</div>
+                        <div class="time-slot" onclick="selectTime(this)">10:30</div>
+                        <div class="time-slot" onclick="selectTime(this)">11:00</div>
+                        <div class="time-slot disabled">11:30</div>
+                        <div class="time-slot" onclick="selectTime(this)">14:00</div>
+                        <div class="time-slot" onclick="selectTime(this)">14:30</div>
+                        <div class="time-slot" onclick="selectTime(this)">15:00</div>
+                        <div class="time-slot disabled">15:30</div>
+                        <div class="time-slot" onclick="selectTime(this)">16:00</div>
+                        <div class="time-slot" onclick="selectTime(this)">16:30</div>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="button-group">
+                    <button class="button primary" onclick="confirmAppointment()" id="confirm-btn" disabled>
+                        Confirmar Cita
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showAppointmentDetails() {
+            document.getElementById('doctors-view').classList.add('hidden');
+            document.getElementById('appointment-view').classList.remove('hidden');
+        }
+
+        function showDoctorList() {
+            document.getElementById('doctors-view').classList.remove('hidden');
+            document.getElementById('appointment-view').classList.add('hidden');
+        }
+
+        function selectConsultationType(element) {
+            document.querySelectorAll('.consultation-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            element.classList.add('selected');
+        }
+
+        function selectTime(element) {
+            if (!element.classList.contains('disabled')) {
+                document.querySelectorAll('.time-slot').forEach(slot => {
+                    slot.classList.remove('selected');
+                });
+                element.classList.add('selected');
+                document.getElementById('confirm-btn').disabled = false;
+            }
+        }
+
+        function confirmAppointment() {
+            alert('¡Cita reservada exitosamente!');
+            showDoctorList();
+        }
+    </script>
+</body>
+</html>
