@@ -9,6 +9,7 @@ import { MedicationTracker } from './components/MedicationTracker';
 import { AppointmentBooking } from './components/AppointmentBooking';
 import { AppointmentHistory } from './components/AppointmentHistory';
 import logo from '../images/Logo (1).svg';
+import logoutIcon from '../images/log out.png';
 import { DoctorDashboard } from './components/DoctorDashboard';
 
 type View = 'home' | 'messages' | 'treatments' | 'medications' | 'appointments' | 'history' | 'profile' | 'patients';
@@ -209,7 +210,7 @@ export default function App() {
                 className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                 title="Cerrar Sesión"
               >
-                <img src="/src/images/log out.png" alt="Cerrar Sesión" className="w-5 h-5" />
+                <img src={logoutIcon} alt="Cerrar Sesión" className="w-5 h-5" />
               </button>
             </nav>
           </div>
@@ -247,7 +248,7 @@ export default function App() {
                 className="flex items-center justify-center p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                 title="Cerrar Sesión"
               >
-                <img src="/src/images/log out.png" alt="Cerrar Sesión" className="w-5 h-5" />
+                <img src={logoutIcon} alt="Cerrar Sesión" className="w-5 h-5" />
               </button>
             </nav>
           )}
