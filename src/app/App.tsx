@@ -9,7 +9,7 @@ import { MedicationTracker } from './components/MedicationTracker';
 import { AppointmentBooking } from './components/AppointmentBooking';
 import { AppointmentHistory } from './components/AppointmentHistory';
 import logo from '../images/Logo (1).svg';
-import logoutIcon from '../images/log out.png';
+import logoutIcon from '../images/logout.png';
 import { DoctorDashboard } from './components/DoctorDashboard';
 
 type View = 'home' | 'messages' | 'treatments' | 'medications' | 'appointments' | 'history' | 'profile' | 'patients';
