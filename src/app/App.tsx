@@ -145,7 +145,7 @@ export default function App() {
     { id: 'appointments' as View, icon: Calendar, label: 'Agendar Cita' },
     { id: 'history' as View, icon: Activity, label: 'Mis Citas' },
     { id: 'messages' as View, icon: MessageSquare, label: 'Mensajes' },
-    { id: 'profile' as View, icon: User, label: 'Perfil' }
+    { id: 'profile' as View, icon: User, label: '' }
   ];
 
   const doctorNavItems = [
@@ -153,7 +153,7 @@ export default function App() {
     { id: 'patients' as View, icon: Users, label: 'Pacientes' },
     { id: 'appointments' as View, icon: Calendar, label: 'Citas' },
     { id: 'messages' as View, icon: MessageSquare, label: 'Mensajes' },
-    { id: 'profile' as View, icon: User, label: 'Perfil' }
+    { id: 'profile' as View, icon: User, label: '' }
   ];
 
   const navItems = userType === 'doctor' ? doctorNavItems : patientNavItems;
@@ -168,7 +168,7 @@ export default function App() {
                 <Activity className="text-white" size={24} />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Vitalid</h1>
+                <h1 className="text-xl font-bold text-gray-900">Vitalid App</h1>
                 <p className="text-xs text-gray-500">{userType === 'doctor' ? 'Portal Médico' : 'Portal Paciente'}</p>
               </div>
             </div>
@@ -193,7 +193,7 @@ export default function App() {
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                       currentView === item.id
                         ? 'bg-blue-50 text-primary'
-                        : 'text-gray-600 hover:bg-gray-50'
+                        : 'text-gray-900 hover:bg-gray-50'
                     }`}
                   >
                     <Icon size={20} />
@@ -207,9 +207,10 @@ export default function App() {
                   setUserType(null);
                   setCurrentView('home');
                 }}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                title="Cerrar Sesión"
               >
-                Cerrar Sesión
+                <img src="/src/images/log out.png" alt="Cerrar Sesión" className="w-5 h-5" />
               </button>
             </nav>
           </div>
@@ -229,7 +230,7 @@ export default function App() {
                     className={`w-full flex items-center gap-2 px-4 py-3 transition-colors ${
                       currentView === item.id
                         ? 'bg-blue-50 text-primary'
-                        : 'text-gray-600 hover:bg-gray-50'
+                        : 'text-gray-900 hover:bg-gray-50'
                     }`}
                   >
                     <Icon size={20} />
@@ -244,10 +245,10 @@ export default function App() {
                   setCurrentView('home');
                   setMobileMenuOpen(false);
                 }}
-                className="w-full flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors"
+                className="flex items-center justify-center p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                title="Cerrar Sesión"
               >
-                <X size={20} />
-                <span>Cerrar Sesión</span>
+                <img src="/src/images/log out.png" alt="Cerrar Sesión" className="w-5 h-5" />
               </button>
             </nav>
           )}
@@ -442,7 +443,7 @@ export default function App() {
                 </div>
               </div>
 
-              <button className="mt-6 w-full px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors">
+              <button className="mt-6 w-full px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors">
                 Editar Perfil
               </button>
             </div>
@@ -494,7 +495,7 @@ export default function App() {
                 </div>
               </div>
 
-              <button className="mt-6 w-full px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors">
+              <button className="mt-6 w-full px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors">
                 Editar Perfil
               </button>
             </div>
