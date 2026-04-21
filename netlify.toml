@@ -9,7 +9,7 @@
 # Serve landing.html as the homepage
 [[redirects]]
   from = "/"
-  to = "/landing.html"
+  to = "/landing-old.html"
   status = 200
 
 # SPA fallback for React app routes
