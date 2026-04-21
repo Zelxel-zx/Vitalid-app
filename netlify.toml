@@ -6,7 +6,13 @@
   NODE_VERSION = "18"
   NPM_FLAGS = "--legacy-peer-deps"
 
-# Redirect all non-file requests to React app (app.html)
+# Serve landing.html as the homepage
+[[redirects]]
+  from = "/"
+  to = "/landing.html"
+  status = 200
+
+# SPA fallback for React app routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
