@@ -6,6 +6,7 @@
   NODE_VERSION = "18"
   NPM_FLAGS = "--legacy-peer-deps"
 
+# Redirect all non-file requests to React app (app.html)
 [[redirects]]
   from = "/*"
   to = "/index.html"
