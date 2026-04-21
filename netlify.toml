@@ -1,5 +1,5 @@
 [build]
-  command = "pnpm install && pnpm build && cp public/landing.html dist/landing.html"
+  command = "pnpm install && pnpm build && cp landing.html dist/landing.html"
   publish = "dist"
 
 [build.environment]
@@ -10,6 +10,12 @@
 [[redirects]]
   from = "/"
   to = "/landing.html"
+  status = 200
+
+# SPA fallback for React app routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
 
 # SPA fallback for React app routes
