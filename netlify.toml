@@ -1,18 +1,12 @@
 [build]
-  command = "pnpm install && pnpm build && cp landing.html dist/landing.html"
+  command = "pnpm install && pnpm build && cp index.html dist/index.html"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "18"
   NPM_FLAGS = "--legacy-peer-deps"
 
-# Serve landing.html as the homepage
-[[redirects]]
-  from = "/"
-  to = "/landing.html"
-  status = 200
-
-# SPA fallback for React app routes
+# SPA fallback: redirect all routes to index.html (landing page)
 [[redirects]]
   from = "/*"
   to = "/index.html"
