@@ -1,145 +1,26 @@
-import { useState } from 'react';
 import { Home, MessageSquare, Activity, User, Menu, X, Pill, Calendar, Users } from 'lucide-react';
-import { LoginScreen } from './components/LoginScreen';
-import { DoctorCard } from './components/DoctorCard';
-import { ChatInterface } from './components/ChatInterface';
-import { TreatmentCard } from './components/TreatmentCard';
-import { ProgressChart } from './components/ProgressChart';
-import { MedicationTracker } from './components/MedicationTracker';
-import { AppointmentBooking } from './components/AppointmentBooking';
-import { AppointmentHistory } from './components/AppointmentHistory';
+import { LoginScreen, DoctorCard, ChatInterface, TreatmentCard, ProgressChart, MedicationTracker, AppointmentBooking, AppointmentHistory, DoctorDashboard } from '../components/presentation';
 import logo from '../images/Logo (1).svg';
 import logoutIcon from '../images/Logout.png';
-import { DoctorDashboard } from './components/DoctorDashboard';
-
-type View = 'home' | 'messages' | 'treatments' | 'medications' | 'appointments' | 'history' | 'profile' | 'patients';
-type UserType = 'patient' | 'doctor' | null;
+import { useAuth } from '../hooks/useAuth';
+import { useNavigation } from '../hooks/useNavigation';
+import { useDoctors } from '../hooks/useDoctors';
+import { useChat } from '../hooks/useChat';
+import { useTreatments } from '../hooks/useTreatments';
+import { useHealthData } from '../hooks/useHealthData';
+import { View } from '../types';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userType, setUserType] = useState<UserType>(null);
-  const [currentView, setCurrentView] = useState<View>('home');
-  const [selectedDoctor, setSelectedDoctor] = useState<number | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const handleLogin = (type: 'patient' | 'doctor') => {
-    setUserType(type);
-    setIsLoggedIn(true);
-  };
+  const { isLoggedIn, userType, handleLogin, handleLogout } = useAuth();
+  const { currentView, selectedDoctor, mobileMenuOpen, setCurrentView, setSelectedDoctor, toggleMobileMenu, handleDoctorClick } = useNavigation();
+  const { doctors } = useDoctors();
+  const { messages } = useChat(selectedDoctor);
+  const { treatments } = useTreatments();
+  const { bloodPressure, bloodSugar } = useHealthData();
 
   if (!isLoggedIn) {
     return <LoginScreen onLogin={handleLogin} />;
   }
-
-  const doctors = [
-    {
-      id: 1,
-      name: 'Dra. Sarah Johnson',
-      specialty: 'Cardióloga',
-      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop',
-      status: 'online' as const,
-      unreadMessages: 3
-    },
-    {
-      id: 2,
-      name: 'Dr. Michael Chen',
-      specialty: 'Endocrinólogo',
-      avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop',
-      status: 'offline' as const,
-      unreadMessages: 0
-    },
-    {
-      id: 3,
-      name: 'Dra. Emily Rodriguez',
-      specialty: 'Medicina General',
-      avatar: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&h=400&fit=crop',
-      status: 'busy' as const,
-      unreadMessages: 1
-    }
-  ];
-
-  const messages = [
-    {
-      id: '1',
-      sender: 'doctor' as const,
-      content: '¡Hola! ¿Cómo te sientes hoy? ¿Has estado tomando tu medicación según lo prescrito?',
-      timestamp: '10:30 AM'
-    },
-    {
-      id: '2',
-      sender: 'patient' as const,
-      content: '¡Hola Dra. Johnson! Sí, la he estado tomando cada mañana. Me siento mucho mejor.',
-      timestamp: '10:32 AM'
-    },
-    {
-      id: '3',
-      sender: 'doctor' as const,
-      content: '¡Qué bueno escuchar eso! Sigue monitoreando tu presión arterial y avísame si notas algún cambio.',
-      timestamp: '10:35 AM'
-    },
-    {
-      id: '4',
-      sender: 'patient' as const,
-      content: 'Lo haré. ¿Debería programar una cita de seguimiento?',
-      timestamp: '10:37 AM'
-    },
-    {
-      id: '5',
-      sender: 'doctor' as const,
-      content: 'Sí, programemos una para el próximo mes para revisar tu progreso.',
-      timestamp: '10:40 AM'
-    }
-  ];
-
-  const treatments = [
-    {
-      title: 'Control de Hipertensión',
-      doctor: 'Sarah Johnson',
-      status: 'active' as const,
-      progress: 75,
-      nextAppointment: '15 de mayo de 2026 a las 14:00',
-      medications: ['Lisinopril 10mg', 'Amlodipino 5mg']
-    },
-    {
-      title: 'Plan de Cuidado de Diabetes',
-      doctor: 'Michael Chen',
-      status: 'active' as const,
-      progress: 60,
-      nextAppointment: '25 de abril de 2026 a las 10:00',
-      medications: ['Metformina 500mg']
-    },
-    {
-      title: 'Chequeo Anual',
-      doctor: 'Emily Rodriguez',
-      status: 'completed' as const,
-      progress: 100
-    }
-  ];
-
-  const bloodPressureData = [
-    { date: '1 Mar', value: 145 },
-    { date: '8 Mar', value: 138 },
-    { date: '15 Mar', value: 135 },
-    { date: '22 Mar', value: 130 },
-    { date: '29 Mar', value: 128 },
-    { date: '5 Abr', value: 125 },
-    { date: '12 Abr', value: 122 }
-  ];
-
-  const bloodSugarData = [
-    { date: '1 Mar', value: 145 },
-    { date: '8 Mar', value: 142 },
-    { date: '15 Mar', value: 138 },
-    { date: '22 Mar', value: 135 },
-    { date: '29 Mar', value: 130 },
-    { date: '5 Abr', value: 128 },
-    { date: '12 Abr', value: 125 }
-  ];
-
-  const handleDoctorClick = (doctorId: number) => {
-    setSelectedDoctor(doctorId);
-    setCurrentView('messages');
-  };
 
   const patientNavItems = [
     { id: 'home' as View, icon: Home, label: 'Inicio' },
@@ -160,6 +41,11 @@ export default function App() {
 
   const navItems = userType === 'doctor' ? doctorNavItems : patientNavItems;
 
+  const handleLogoutClick = () => {
+    handleLogout();
+    setCurrentView('home');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -174,7 +60,7 @@ export default function App() {
             </div>
 
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={toggleMobileMenu}
               className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -202,11 +88,7 @@ export default function App() {
                 );
               })}
               <button
-                onClick={() => {
-                  setIsLoggedIn(false);
-                  setUserType(null);
-                  setCurrentView('home');
-                }}
+                onClick={handleLogoutClick}
                 className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                 title="Cerrar Sesión"
               >
@@ -225,7 +107,7 @@ export default function App() {
                     onClick={() => {
                       setCurrentView(item.id);
                       setSelectedDoctor(null);
-                      setMobileMenuOpen(false);
+                      toggleMobileMenu();
                     }}
                     className={`w-full flex items-center gap-2 px-4 py-3 transition-colors ${
                       currentView === item.id
@@ -239,12 +121,7 @@ export default function App() {
                 );
               })}
               <button
-                onClick={() => {
-                  setIsLoggedIn(false);
-                  setUserType(null);
-                  setCurrentView('home');
-                  setMobileMenuOpen(false);
-                }}
+                onClick={handleLogoutClick}
                 className="flex items-center justify-center p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                 title="Cerrar Sesión"
               >
@@ -264,7 +141,7 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-primary text-white rounded-xl p-6">
                   <h3 className="text-sm opacity-90 mb-1">Tratamientos Activos</h3>
-                  <p className="text-3xl font-semibold">2</p>
+                  <p className="text-3xl font-semibold">{treatments.filter(t => t.status === 'active').length}</p>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <h3 className="text-sm text-gray-600 mb-1">Próximas Citas</h3>
@@ -272,7 +149,7 @@ export default function App() {
                 </div>
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <h3 className="text-sm text-gray-600 mb-1">Mensajes Sin Leer</h3>
-                  <p className="text-3xl font-semibold text-gray-900">4</p>
+                  <p className="text-3xl font-semibold text-gray-900">{doctors.reduce((sum, d) => sum + d.unreadMessages, 0)}</p>
                 </div>
               </div>
 
@@ -306,13 +183,13 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <ProgressChart
                   title="Presión Arterial (Sistólica)"
-                  data={bloodPressureData}
+                  data={bloodPressure}
                   unit="mmHg"
                   target={120}
                 />
                 <ProgressChart
                   title="Glucosa en Sangre"
-                  data={bloodSugarData}
+                  data={bloodSugar}
                   unit="mg/dL"
                   target={100}
                 />
@@ -440,58 +317,6 @@ export default function App() {
                     <span className="px-3 py-1 bg-red-400 text-red-900 rounded-full text-sm font-medium">Penicilina</span>
                     <span className="px-3 py-1 bg-red-400 text-red-900 rounded-full text-sm font-medium">Maní</span>
                   </div>
-                </div>
-              </div>
-
-              <button className="mt-6 w-full px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors">
-                Editar Perfil
-              </button>
-            </div>
-          </div>
-        )}
-
-        {currentView === 'profile' && userType === 'doctor' && (
-          <div className="max-w-2xl mx-auto space-y-6">
-            <h2 className="text-2xl font-semibold text-gray-900">Mi Perfil</h2>
-
-            <div className="bg-white rounded-xl p-6 border border-gray-200">
-              <div className="flex items-center gap-6 mb-6">
-                <img
-                  src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop"
-                  alt="Profile"
-                  className="w-24 h-24 rounded-full object-cover"
-                />
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">Dra. Sarah Johnson</h3>
-                  <p className="text-gray-500">Cardióloga</p>
-                  <p className="text-gray-500">Licencia Médica: #98765</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-gray-600">Correo Electrónico</label>
-                  <p className="font-medium">sarah.johnson@vitalid.com</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Teléfono</label>
-                  <p className="font-medium">+1 (555) 987-6543</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Especialidad</label>
-                  <p className="font-medium">Cardiología</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Años de Experiencia</label>
-                  <p className="font-medium">15 años</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Hospital Afiliado</label>
-                  <p className="font-medium">Hospital General Central</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Pacientes Activos</label>
-                  <p className="font-medium">47 pacientes</p>
                 </div>
               </div>
 
