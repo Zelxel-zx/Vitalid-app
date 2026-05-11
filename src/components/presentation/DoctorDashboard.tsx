@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { AlertTriangle, TrendingDown, CheckCircle2, Clock, FileText, Pill, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, TrendingDown, CheckCircle2, Clock, FileText, Pill, X, Search } from 'lucide-react';
 import { downloadPatientReport } from '../../services/reportService';
 import { createMedication } from '../../services/medicationService';
+import { getAllPatients, PatientResponse } from '../../services/patientService';
 
 interface PatientStatus {
   id: string;
@@ -13,54 +14,48 @@ interface PatientStatus {
   lastUpdate: string;
   missedDoses: number;
 }
-
 export function DoctorDashboard() {
-  const patients: PatientStatus[] = [
-    {
-      id: '1',
-      name: 'John Anderson',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-      condition: 'Hipertensión + Diabetes',
-      riskLevel: 'high',
-      compliance: 45,
-      lastUpdate: 'Hace 2 días',
-      missedDoses: 6
-    },
-    {
-      id: '2',
-      name: 'Maria Garcia',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop',
-      condition: 'Hipertensión',
-      riskLevel: 'medium',
-      compliance: 75,
-      lastUpdate: 'Hace 1 día',
-      missedDoses: 3
-    },
-    {
-      id: '3',
-      name: 'Robert Chen',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop',
-      condition: 'Control post-operatorio',
-      riskLevel: 'low',
-      compliance: 95,
-      lastUpdate: 'Hace 2 horas',
-      missedDoses: 0
-    },
-    {
-      id: '4',
-      name: 'Linda Martinez',
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop',
-      condition: 'Diabetes Tipo 2',
-      riskLevel: 'high',
-      compliance: 50,
-      lastUpdate: 'Hace 3 días',
-      missedDoses: 5
-    }
-  ];
+  const [patients, setPatients] = useState<PatientStatus[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const highRiskPatients = patients.filter(p => p.riskLevel === 'high');
-  const mediumRiskPatients = patients.filter(p => p.riskLevel === 'medium');
-  const lowRiskPatients = patients.filter(p => p.riskLevel === 'low');
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
+  const loadPatients = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getAllPatients();
+      
+      const mapped: PatientStatus[] = data.map(p => ({
+        id: String(p.userId), // Store userId here to make prescriptions and reports work smoothly
+        name: p.name || 'Paciente sin nombre',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name || 'Paciente')}&background=random`,
+        condition: p.medicalHistory || 'Sin historial clínico',
+        // Mock the risk level and compliance for now, since these aren't in the DB natively yet
+        riskLevel: Math.random() > 0.7 ? 'high' : Math.random() > 0.4 ? 'medium' : 'low',
+        compliance: Math.floor(Math.random() * 40) + 60,
+        lastUpdate: 'Recientemente',
+        missedDoses: Math.floor(Math.random() * 5)
+      }));
+      
+      setPatients(mapped);
+    } catch (error) {
+      console.error('Error loading patients:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredPatients = patients.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.condition.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const highRiskPatients = filteredPatients.filter(p => p.riskLevel === 'high');
+  const mediumRiskPatients = filteredPatients.filter(p => p.riskLevel === 'medium');
+  const lowRiskPatients = filteredPatients.filter(p => p.riskLevel === 'low');
 
   const getRiskColor = (level: 'high' | 'medium' | 'low') => {
     switch (level) {
@@ -160,6 +155,9 @@ export function DoctorDashboard() {
 
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Pacientes Críticos</h2>
+        {highRiskPatients.length === 0 && (
+          <p className="text-gray-500 bg-gray-50 p-4 rounded-lg border border-gray-200">No hay pacientes en estado crítico.</p>
+        )}
         <div className="space-y-4">
           {highRiskPatients.map((patient) => (
             <div
@@ -248,9 +246,29 @@ export function DoctorDashboard() {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Todos los Pacientes</h2>
-        <div className="space-y-4">
-          {patients.map((patient) => (
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+          <h2 className="text-xl font-semibold text-gray-900">Todos los Pacientes</h2>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Buscar por nombre o condición..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full md:w-80 focus:outline-none focus:border-teal-500"
+            />
+          </div>
+        </div>
+        
+        {isLoading ? (
+          <div className="text-center py-8 text-gray-500">Cargando pacientes...</div>
+        ) : filteredPatients.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border border-gray-200">
+            No se encontraron pacientes en la base de datos que coincidan con la búsqueda.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredPatients.map((patient) => (
             <div
               key={patient.id}
               className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
@@ -312,7 +330,8 @@ export function DoctorDashboard() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {showPrescriptionModal && (

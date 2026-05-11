@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, Video, MapPin, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, Filter, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { DoctorSummary, getAllDoctors, getDoctorAvailability } from '../../services/doctorService';
 import { createAppointment } from '../../services/appointmentService';
 
 export function AppointmentBooking() {
   const [doctors, setDoctors] = useState<DoctorSummary[]>([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorSummary | null>(null);
   
   // Create a date without time to avoid timezone offset issues when selecting today
@@ -53,9 +54,11 @@ export function AppointmentBooking() {
 
   const specialties = ['Todos', ...Array.from(new Set(doctors.map(d => d.specialty).filter(Boolean)))];
 
-  const filteredDoctors = selectedSpecialty === 'all' || selectedSpecialty === 'Todos'
-    ? doctors
-    : doctors.filter(d => d.specialty?.toLowerCase() === selectedSpecialty.toLowerCase());
+  const filteredDoctors = doctors.filter(d => {
+    const matchesSpecialty = selectedSpecialty === 'all' || selectedSpecialty === 'Todos' || d.specialty?.toLowerCase() === selectedSpecialty.toLowerCase();
+    const matchesSearch = d.name?.toLowerCase().includes(searchTerm.toLowerCase()) || d.specialty?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSpecialty && matchesSearch;
+  });
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -210,19 +213,31 @@ export function AppointmentBooking() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Filter size={20} className="text-gray-600" />
-        <select
-          value={selectedSpecialty}
-          onChange={(e) => setSelectedSpecialty(e.target.value)}
-          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-        >
-          {specialties.map((specialty) => (
-            <option key={specialty} value={specialty === 'Todos' ? 'all' : specialty}>
-              {specialty}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Buscar doctor por nombre o especialidad..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg w-full focus:outline-none focus:border-primary"
+          />
+        </div>
+        <div className="flex items-center gap-3 md:w-64">
+          <Filter size={20} className="text-gray-600 shrink-0" />
+          <select
+            value={selectedSpecialty}
+            onChange={(e) => setSelectedSpecialty(e.target.value)}
+            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary bg-white"
+          >
+            {specialties.map((specialty) => (
+              <option key={specialty} value={specialty === 'Todos' ? 'all' : specialty}>
+                {specialty}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="space-y-4">

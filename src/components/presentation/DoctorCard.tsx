@@ -24,11 +24,11 @@ export function DoctorCard({ name, specialty, avatar, status, unreadMessages, on
       <div className="flex items-start gap-4">
         <div className="relative">
           <img
-            src={avatar}
+            src={avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
             alt={name}
             className="w-16 h-16 rounded-full object-cover"
           />
-          <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${statusColors[status]}`} />
+          <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${statusColors[(status?.toLowerCase() as keyof typeof statusColors) || 'offline']}`} />
         </div>
 
         <div className="flex-1 min-w-0">
