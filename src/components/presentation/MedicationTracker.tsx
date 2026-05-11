@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Pill, Clock, Check, X, AlertCircle, Plus, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Pill, Clock, Check, X, AlertCircle, Plus } from 'lucide-react';
+import { getMedicationsForPatient, takeDose, addSideEffect, MedicationResponse } from '../../services/medicationService';
 
 interface Medication {
   id: string;
@@ -20,60 +21,77 @@ interface MedicationLog {
 }
 
 export function MedicationTracker() {
-  const [medications] = useState<Medication[]>([
-    {
-      id: '1',
-      name: 'Lisinopril',
-      dosage: '10mg',
-      frequency: '1 vez al día',
-      times: ['08:00'],
-      pillsRemaining: 15,
-      totalPills: 30,
-      sideEffects: ['Mareo leve']
-    },
-    {
-      id: '2',
-      name: 'Metformina',
-      dosage: '500mg',
-      frequency: '2 veces al día',
-      times: ['08:00', '20:00'],
-      pillsRemaining: 8,
-      totalPills: 60
-    },
-    {
-      id: '3',
-      name: 'Amlodipino',
-      dosage: '5mg',
-      frequency: '1 vez al día',
-      times: ['08:00'],
-      pillsRemaining: 25,
-      totalPills: 30
-    }
-  ]);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [todayLogs, setTodayLogs] = useState<MedicationLog[]>([
-    { medicationId: '1', time: '08:00', taken: true },
-    { medicationId: '2', time: '08:00', taken: true },
-    { medicationId: '3', time: '08:00', taken: false }
-  ]);
+  const [todayLogs, setTodayLogs] = useState<MedicationLog[]>([]);
 
   const [showSideEffectModal, setShowSideEffectModal] = useState(false);
   const [selectedMedication, setSelectedMedication] = useState<string | null>(null);
   const [sideEffectNote, setSideEffectNote] = useState('');
 
-  const toggleMedication = (medicationId: string, time: string) => {
-    setTodayLogs(logs => {
-      const existing = logs.find(l => l.medicationId === medicationId && l.time === time);
-      if (existing) {
-        return logs.map(l =>
-          l.medicationId === medicationId && l.time === time
-            ? { ...l, taken: !l.taken }
-            : l
-        );
-      } else {
-        return [...logs, { medicationId, time, taken: true }];
+  useEffect(() => {
+    loadMedications();
+  }, []);
+
+  const loadMedications = async () => {
+    try {
+      setIsLoading(true);
+      const userId = Number(localStorage.getItem('authUserId'));
+      if (!userId) return;
+
+      const data = await getMedicationsForPatient(userId);
+      
+      const mappedMedications: Medication[] = data.map(m => {
+        // Derive times based on frequency string
+        let times = ['08:00'];
+        if (m.frequency.toLowerCase().includes('2')) {
+          times = ['08:00', '20:00'];
+        } else if (m.frequency.toLowerCase().includes('3')) {
+          times = ['08:00', '14:00', '20:00'];
+        }
+        
+        const sideEffectsArray = m.sideEffects ? m.sideEffects.split(',').map(s => s.trim()).filter(s => s.length > 0) : [];
+
+        return {
+          id: String(m.id),
+          name: m.name,
+          dosage: m.dosage,
+          frequency: m.frequency,
+          times,
+          pillsRemaining: m.pillsRemaining !== null ? m.pillsRemaining : 0,
+          totalPills: m.totalPills !== null ? m.totalPills : 30,
+          sideEffects: sideEffectsArray
+        };
+      });
+      
+      setMedications(mappedMedications);
+    } catch (error) {
+      console.error('Error loading medications:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleMedication = async (medicationId: string, time: string) => {
+    // Only allow marking as taken, not untaken for this simplified version
+    const existing = todayLogs.find(l => l.medicationId === medicationId && l.time === time);
+    if (!existing || !existing.taken) {
+      try {
+        await takeDose(medicationId, { time, timestamp: new Date().toISOString() });
+        setTodayLogs(logs => [...logs, { medicationId, time, taken: true }]);
+        
+        // Optimistically update pills remaining
+        setMedications(meds => meds.map(m => {
+          if (m.id === medicationId && m.pillsRemaining > 0) {
+            return { ...m, pillsRemaining: m.pillsRemaining - 1 };
+          }
+          return m;
+        }));
+      } catch (error) {
+        console.error('Error taking dose:', error);
       }
-    });
+    }
   };
 
   const isTaken = (medicationId: string, time: string) => {
@@ -86,12 +104,31 @@ export function MedicationTracker() {
     return Math.round((taken / total) * 100);
   };
 
-  const handleAddSideEffect = () => {
-    console.log('Añadiendo efecto secundario:', sideEffectNote);
+  const handleAddSideEffect = async () => {
+    if (!selectedMedication || !sideEffectNote.trim()) return;
+    
+    try {
+      await addSideEffect(selectedMedication, sideEffectNote);
+      // Optimistically update UI
+      setMedications(meds => meds.map(m => {
+        if (m.id === selectedMedication) {
+          const currentEffects = m.sideEffects ? [...m.sideEffects] : [];
+          return { ...m, sideEffects: [...currentEffects, sideEffectNote] };
+        }
+        return m;
+      }));
+    } catch (error) {
+      console.error('Error adding side effect:', error);
+    }
+
     setSideEffectNote('');
     setShowSideEffectModal(false);
     setSelectedMedication(null);
   };
+
+  if (isLoading) {
+    return <div className="text-center py-8 text-gray-500">Cargando medicamentos...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -198,7 +235,9 @@ export function MedicationTracker() {
         })}
       </div>
 
-      <button className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-teal-500 hover:text-teal-600 transition-colors flex items-center justify-center gap-2">
+      <button 
+        onClick={() => alert('La funcionalidad para registrar recetas requiere validación médica y estará disponible próximamente en tu cuenta de paciente.')}
+        className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-teal-500 hover:text-teal-600 transition-colors flex items-center justify-center gap-2">
         <Plus size={20} />
         Registrar nueva receta
       </button>

@@ -1,5 +1,6 @@
 import { Home, MessageSquare, Activity, User, Menu, X, Pill, Calendar, Users } from 'lucide-react';
 import { LoginScreen, DoctorCard, ChatInterface, TreatmentCard, ProgressChart, MedicationTracker, AppointmentBooking, AppointmentHistory, DoctorDashboard } from '../components/presentation';
+import { ProfileView } from '../components/presentation/ProfileView';
 import logo from '../images/Logo (1).svg';
 import logoutIcon from '../images/Logout.png';
 import { useAuth } from '../hooks/useAuth';
@@ -12,15 +13,20 @@ import { View } from '../types';
 
 export default function App() {
   const { isLoggedIn, userType, handleLogin, handleRegister, handleLogout } = useAuth();
+
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
+  }
+
+  return <MainApp key={localStorage.getItem('authUserId')} userType={userType} handleLogout={handleLogout} />;
+}
+
+function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | null, handleLogout: () => void }) {
   const { currentView, selectedDoctor, mobileMenuOpen, setCurrentView, setSelectedDoctor, toggleMobileMenu, handleDoctorClick } = useNavigation();
   const { doctors } = useDoctors();
   const { messages } = useChat(selectedDoctor);
   const { treatments } = useTreatments();
   const { bloodPressure, bloodSugar } = useHealthData();
-
-  if (!isLoggedIn) {
-    return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
-  }
 
   const patientNavItems = [
     { id: 'home' as View, icon: Home, label: 'Inicio' },
@@ -221,10 +227,14 @@ export default function App() {
         {currentView === 'appointments' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Agendar Cita</h2>
-              <p className="text-gray-600">Encuentra y reserva citas con tus doctores</p>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                {userType === 'doctor' ? 'Mi Agenda' : 'Agendar Cita'}
+              </h2>
+              <p className="text-gray-600">
+                {userType === 'doctor' ? 'Revisa tus próximas consultas programadas' : 'Encuentra y reserva citas con tus doctores'}
+              </p>
             </div>
-            <AppointmentBooking />
+            {userType === 'doctor' ? <AppointmentHistory /> : <AppointmentBooking />}
           </div>
         )}
 
@@ -277,54 +287,8 @@ export default function App() {
           </div>
         )}
 
-        {currentView === 'profile' && userType === 'patient' && (
-          <div className="max-w-2xl mx-auto space-y-6">
-            <h2 className="text-2xl font-semibold text-gray-900">Mi Perfil</h2>
-
-            <div className="bg-white rounded-xl p-6 border border-gray-200">
-              <div className="flex items-center gap-6 mb-6">
-                <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop"
-                  alt="Profile"
-                  className="w-24 h-24 rounded-full object-cover"
-                />
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">John Anderson</h3>
-                  <p className="text-gray-500">ID de Paciente: #12345</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-gray-600">Correo Electrónico</label>
-                  <p className="font-medium">john.anderson@email.com</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Teléfono</label>
-                  <p className="font-medium">+1 (555) 123-4567</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Fecha de Nacimiento</label>
-                  <p className="font-medium">15 de enero de 1980</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Tipo de Sangre</label>
-                  <p className="font-medium">A+</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Alergias</label>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    <span className="px-3 py-1 bg-red-400 text-red-900 rounded-full text-sm font-medium">Penicilina</span>
-                    <span className="px-3 py-1 bg-red-400 text-red-900 rounded-full text-sm font-medium">Maní</span>
-                  </div>
-                </div>
-              </div>
-
-              <button className="mt-6 w-full px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors">
-                Editar Perfil
-              </button>
-            </div>
-          </div>
+        {currentView === 'profile' && (
+          <ProfileView />
         )}
       </main>
     </div>

@@ -1,97 +1,98 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Clock, Video, MapPin, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-
-interface Doctor {
-  id: number;
-  name: string;
-  specialty: string;
-  avatar: string;
-  rating: number;
-  consultationFee: number;
-}
-
-interface TimeSlot {
-  time: string;
-  available: boolean;
-}
+import { DoctorSummary, getAllDoctors, getDoctorAvailability } from '../../services/doctorService';
+import { createAppointment } from '../../services/appointmentService';
 
 export function AppointmentBooking() {
+  const [doctors, setDoctors] = useState<DoctorSummary[]>([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
-  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDoctor, setSelectedDoctor] = useState<DoctorSummary | null>(null);
+  
+  // Create a date without time to avoid timezone offset issues when selecting today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [consultationType, setConsultationType] = useState<'presencial' | 'videollamada'>('presencial');
+  const [isBooking, setIsBooking] = useState(false);
 
-  const specialties = [
-    'Todos',
-    'Cardiología',
-    'Endocrinología',
-    'Medicina General',
-    'Dermatología',
-    'Pediatría'
-  ];
+  useEffect(() => {
+    loadDoctors();
+  }, []);
 
-  const doctors: Doctor[] = [
-    {
-      id: 1,
-      name: 'Dr. Sarah Johnson',
-      specialty: 'Cardiología',
-      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop',
-      rating: 4.9,
-      consultationFee: 80
-    },
-    {
-      id: 2,
-      name: 'Dr. Michael Chen',
-      specialty: 'Endocrinología',
-      avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop',
-      rating: 4.8,
-      consultationFee: 75
-    },
-    {
-      id: 3,
-      name: 'Dr. Emily Rodriguez',
-      specialty: 'Medicina General',
-      avatar: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&h=400&fit=crop',
-      rating: 4.7,
-      consultationFee: 60
+  useEffect(() => {
+    if (selectedDoctor) {
+      loadAvailability();
     }
-  ];
+  }, [selectedDoctor, selectedDate]);
 
-  const timeSlots: TimeSlot[] = [
-    { time: '09:00', available: true },
-    { time: '09:30', available: true },
-    { time: '10:00', available: false },
-    { time: '10:30', available: true },
-    { time: '11:00', available: true },
-    { time: '11:30', available: false },
-    { time: '14:00', available: true },
-    { time: '14:30', available: true },
-    { time: '15:00', available: true },
-    { time: '15:30', available: false },
-    { time: '16:00', available: true },
-    { time: '16:30', available: true }
-  ];
+  const loadDoctors = async () => {
+    try {
+      const data = await getAllDoctors();
+      setDoctors(data);
+    } catch (err) {
+      console.error('Error loading doctors:', err);
+    }
+  };
 
-  const filteredDoctors = selectedSpecialty === 'all'
+  const loadAvailability = async () => {
+    if (!selectedDoctor) return;
+    try {
+      // Format date as YYYY-MM-DD
+      const dateStr = selectedDate.toLocaleDateString('en-CA');
+      const response = await getDoctorAvailability(selectedDoctor.id, dateStr);
+      setAvailableSlots(response.availableSlots);
+      setSelectedTime(null);
+    } catch (err) {
+      console.error('Error loading availability:', err);
+      setAvailableSlots([]);
+    }
+  };
+
+  const specialties = ['Todos', ...Array.from(new Set(doctors.map(d => d.specialty).filter(Boolean)))];
+
+  const filteredDoctors = selectedSpecialty === 'all' || selectedSpecialty === 'Todos'
     ? doctors
-    : doctors.filter(d => d.specialty.toLowerCase() === selectedSpecialty.toLowerCase());
+    : doctors.filter(d => d.specialty?.toLowerCase() === selectedSpecialty.toLowerCase());
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  const handleBookAppointment = () => {
+  const changeDate = (days: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    // Don't allow past dates
+    if (newDate >= today) {
+      setSelectedDate(newDate);
+    }
+  };
+
+  const handleBookAppointment = async () => {
     if (selectedDoctor && selectedTime) {
-      console.log('Reservando cita:', {
-        doctor: selectedDoctor.name,
-        date: selectedDate,
-        time: selectedTime,
-        type: consultationType
-      });
-      alert(`¡Cita reservada con ${selectedDoctor.name} el ${formatDate(selectedDate)} a las ${selectedTime}!`);
-      setSelectedDoctor(null);
-      setSelectedTime(null);
+      try {
+        setIsBooking(true);
+        const patientId = Number(localStorage.getItem('authUserId'));
+        
+        await createAppointment({
+          patientId,
+          doctorId: selectedDoctor.id,
+          date: selectedDate.toLocaleDateString('en-CA'),
+          time: selectedTime,
+          reason: `Consulta ${consultationType}`,
+        });
+        
+        alert(`¡Cita reservada con ${selectedDoctor.name} el ${formatDate(selectedDate)} a las ${selectedTime}!`);
+        setSelectedDoctor(null);
+        setSelectedTime(null);
+      } catch (err) {
+        console.error('Error booking appointment:', err);
+        alert('Error al reservar la cita. Por favor intenta de nuevo.');
+      } finally {
+        setIsBooking(false);
+      }
     }
   };
 
@@ -112,16 +113,15 @@ export function AppointmentBooking() {
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-start gap-4 mb-6">
             <img
-              src={selectedDoctor.avatar}
+              src={selectedDoctor.avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
               alt={selectedDoctor.name}
-              className="w-20 h-20 rounded-full"
+              className="w-20 h-20 rounded-full object-cover"
             />
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{selectedDoctor.name}</h2>
               <p className="text-gray-600">{selectedDoctor.specialty}</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-yellow-500">★</span>
-                <span className="text-sm text-gray-600">{selectedDoctor.rating} / 5.0</span>
+                <span className="text-sm text-gray-600">{selectedDoctor.experienceYears || 0} años de experiencia</span>
               </div>
             </div>
           </div>
@@ -139,7 +139,6 @@ export function AppointmentBooking() {
               >
                 <MapPin className={`mx-auto mb-2 ${consultationType === 'presencial' ? 'text-primary' : 'text-gray-400'}`} size={24} />
                 <p className="font-medium text-gray-900">Presencial</p>
-                <p className="text-sm text-gray-500">${selectedDoctor.consultationFee}</p>
               </button>
               <button
                 onClick={() => setConsultationType('videollamada')}
@@ -151,7 +150,6 @@ export function AppointmentBooking() {
               >
                 <Video className={`mx-auto mb-2 ${consultationType === 'videollamada' ? 'text-primary' : 'text-gray-400'}`} size={24} />
                 <p className="font-medium text-gray-900">Videollamada</p>
-                <p className="text-sm text-gray-500">${selectedDoctor.consultationFee - 10}</p>
               </button>
             </div>
           </div>
@@ -160,11 +158,11 @@ export function AppointmentBooking() {
             <label className="block text-sm font-medium text-gray-700 mb-3">Selecciona una fecha</label>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
-                <button className="p-2 hover:bg-gray-200 rounded">
+                <button onClick={() => changeDate(-1)} className="p-2 hover:bg-gray-200 rounded">
                   <ChevronLeft size={20} />
                 </button>
-                <span className="font-medium">{formatDate(selectedDate)}</span>
-                <button className="p-2 hover:bg-gray-200 rounded">
+                <span className="font-medium capitalize">{formatDate(selectedDate)}</span>
+                <button onClick={() => changeDate(1)} className="p-2 hover:bg-gray-200 rounded">
                   <ChevronRight size={20} />
                 </button>
               </div>
@@ -173,36 +171,37 @@ export function AppointmentBooking() {
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-3">Horarios disponibles</label>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {timeSlots.map((slot) => (
-                <button
-                  key={slot.time}
-                  onClick={() => slot.available && setSelectedTime(slot.time)}
-                  disabled={!slot.available}
-                  className={`py-2 rounded-lg text-sm font-medium transition-all ${
-                    !slot.available
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : selectedTime === slot.time
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-primary'
-                  }`}
-                >
-                  {slot.time}
-                </button>
-              ))}
-            </div>
+            {availableSlots.length === 0 ? (
+              <p className="text-gray-500 text-sm">No hay horarios disponibles para esta fecha.</p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {availableSlots.map((time) => (
+                  <button
+                    key={time}
+                    onClick={() => setSelectedTime(time)}
+                    className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                        selectedTime === time
+                        ? 'bg-primary text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-primary'
+                    }`}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <button
             onClick={handleBookAppointment}
-            disabled={!selectedTime}
+            disabled={!selectedTime || isBooking}
             className={`w-full py-3 rounded-lg font-medium transition-colors ${
-              selectedTime
+              selectedTime && !isBooking
                 ? 'bg-primary text-white hover:opacity-90'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
           >
-            Confirmar Cita
+            {isBooking ? 'Procesando...' : 'Confirmar Cita'}
           </button>
         </div>
       </div>
@@ -227,38 +226,39 @@ export function AppointmentBooking() {
       </div>
 
       <div className="space-y-4">
-        {filteredDoctors.map((doctor) => (
-          <div
-            key={doctor.id}
-            className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <img
-                  src={doctor.avatar}
-                  alt={doctor.name}
-                  className="w-16 h-16 rounded-full"
-                />
-                <div>
-                  <h3 className="font-semibold text-gray-900">{doctor.name}</h3>
-                  <p className="text-sm text-gray-600">{doctor.specialty}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-yellow-500">★</span>
-                    <span className="text-sm text-gray-600">{doctor.rating} / 5.0</span>
-                    <span className="text-sm text-gray-400">•</span>
-                    <span className="text-sm text-gray-600">${doctor.consultationFee}</span>
+        {filteredDoctors.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">No se encontraron doctores.</p>
+        ) : (
+          filteredDoctors.map((doctor) => (
+            <div
+              key={doctor.id}
+              className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <img
+                    src={doctor.avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
+                    alt={doctor.name}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{doctor.name}</h3>
+                    <p className="text-sm text-gray-600">{doctor.specialty}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-sm text-gray-600">{doctor.experienceYears || 0} años exp.</span>
+                    </div>
                   </div>
                 </div>
+                <button
+                  onClick={() => setSelectedDoctor(doctor)}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors text-sm"
+                >
+                  Agendar
+                </button>
               </div>
-              <button
-                onClick={() => setSelectedDoctor(doctor)}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors text-sm"
-              >
-                Agendar
-              </button>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

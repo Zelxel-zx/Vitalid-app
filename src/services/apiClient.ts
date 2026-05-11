@@ -15,10 +15,16 @@ async function parseJson(response: Response) {
 
 export async function request<T>(path: string, options: RequestInit = {}) {
   const url = path.startsWith('/api') ? path : `/api${path}`;
-  const headers = {
+  const token = localStorage.getItem('authToken');
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers || {}),
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
   };
+  
+  // Merge custom headers
+  if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
 
   const response = await fetch(url, {
     ...options,
@@ -36,7 +42,13 @@ export async function request<T>(path: string, options: RequestInit = {}) {
     throw new Error(payload.message || 'Request failed');
   }
 
-  return payload as ApiResponse<T>;
+  return payload as any;
+}
+
+export async function getJson<T>(path: string) {
+  return request<T>(path, {
+    method: 'GET',
+  });
 }
 
 export async function postJson<T>(path: string, body: unknown) {

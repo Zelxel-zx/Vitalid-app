@@ -1,4 +1,7 @@
-import { AlertTriangle, TrendingDown, CheckCircle2, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, TrendingDown, CheckCircle2, Clock, FileText, Pill, X } from 'lucide-react';
+import { downloadPatientReport } from '../../services/reportService';
+import { createMedication } from '../../services/medicationService';
 
 interface PatientStatus {
   id: string;
@@ -86,6 +89,44 @@ export function DoctorDashboard() {
     alert('Iniciando contacto con el paciente');
   };
 
+  // Prescription Modal State
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [newMedName, setNewMedName] = useState('');
+  const [newMedDosage, setNewMedDosage] = useState('');
+  const [newMedFrequency, setNewMedFrequency] = useState('1 vez al día');
+  const [newMedTotalPills, setNewMedTotalPills] = useState(30);
+
+  const handlePrescribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPatientId) return;
+
+    try {
+      const startDate = new Date().toISOString().split('T')[0];
+      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      // Assuming selectedPatientId maps to the user ID since this is mock data
+      await createMedication(Number(selectedPatientId), {
+        patientId: 0,
+        name: newMedName,
+        dosage: newMedDosage,
+        frequency: newMedFrequency,
+        totalPills: newMedTotalPills,
+        startDate,
+        endDate
+      });
+
+      alert('Receta enviada exitosamente al paciente');
+      setShowPrescriptionModal(false);
+      setNewMedName('');
+      setNewMedDosage('');
+      setNewMedTotalPills(30);
+    } catch (error) {
+      console.error('Error prescribing:', error);
+      alert('Error al recetar. Es posible que este paciente de prueba no exista en la base de datos.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -167,12 +208,38 @@ export function DoctorDashboard() {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => handleContactPatient(patient.id)}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors"
-                  >
-                    Contactar Paciente
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleContactPatient(patient.id)}
+                      className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors"
+                    >
+                      Contactar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedPatientId(patient.id);
+                        setShowPrescriptionModal(true);
+                      }}
+                      className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
+                      title="Recetar Medicamento"
+                    >
+                      <Pill size={18} />
+                      Recetar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await downloadPatientReport(Number(patient.id));
+                        } catch (error) {
+                          alert('Error al descargar historial');
+                        }
+                      }}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                      title="Descargar Historial Médico"
+                    >
+                      <FileText size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -200,8 +267,33 @@ export function DoctorDashboard() {
                       <h3 className="font-medium text-gray-900">{patient.name}</h3>
                       <p className="text-sm text-gray-600">{patient.condition}</p>
                     </div>
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRiskColor(patient.riskLevel)}`}>
-                      {getRiskIcon(patient.riskLevel)}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedPatientId(patient.id);
+                          setShowPrescriptionModal(true);
+                        }}
+                        className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                        title="Recetar Medicamento"
+                      >
+                        <Pill size={18} />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await downloadPatientReport(Number(patient.id));
+                          } catch (error) {
+                            alert('Error al descargar historial');
+                          }
+                        }}
+                        className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Descargar Historial Médico"
+                      >
+                        <FileText size={18} />
+                      </button>
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRiskColor(patient.riskLevel)}`}>
+                        {getRiskIcon(patient.riskLevel)}
+                      </div>
                     </div>
                   </div>
 
@@ -222,6 +314,84 @@ export function DoctorDashboard() {
           ))}
         </div>
       </div>
+
+      {showPrescriptionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Recetar a Paciente</h3>
+              <button
+                onClick={() => setShowPrescriptionModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handlePrescribe} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Medicamento</label>
+                <input 
+                  type="text" 
+                  required
+                  value={newMedName}
+                  onChange={e => setNewMedName(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                  placeholder="Ej. Paracetamol"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Dosis</label>
+                <input 
+                  type="text" 
+                  required
+                  value={newMedDosage}
+                  onChange={e => setNewMedDosage(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                  placeholder="Ej. 500mg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Frecuencia</label>
+                <select 
+                  value={newMedFrequency}
+                  onChange={e => setNewMedFrequency(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                >
+                  <option value="1 vez al día">1 vez al día</option>
+                  <option value="2 veces al día">2 veces al día</option>
+                  <option value="3 veces al día">3 veces al día</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Total de Pastillas en la Caja</label>
+                <input 
+                  type="number" 
+                  required
+                  min="1"
+                  value={newMedTotalPills}
+                  onChange={e => setNewMedTotalPills(Number(e.target.value))}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowPrescriptionModal(false)}
+                  className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
+                >
+                  Enviar Receta
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

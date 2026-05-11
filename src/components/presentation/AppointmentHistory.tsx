@@ -1,78 +1,79 @@
+import { useState, useEffect } from 'react';
 import { Calendar, MapPin, Video, FileText, Edit2 } from 'lucide-react';
+import { getAppointmentsForPatient, getAppointmentsForDoctor, AppointmentResponse } from '../../services/appointmentService';
+import { getDoctorById, DoctorSummary } from '../../services/doctorService';
 
-interface Appointment {
-  id: string;
-  doctorName: string;
-  doctorAvatar: string;
-  specialty: string;
-  date: string;
-  time: string;
-  type: 'presencial' | 'videollamada';
-  status: 'completed' | 'upcoming' | 'cancelled';
-  diagnosis?: string;
-  notes?: string;
+interface EnrichedAppointment extends AppointmentResponse {
+  doctorAvatar?: string;
+  specialty?: string;
 }
 
 export function AppointmentHistory() {
-  const appointments: Appointment[] = [
-    {
-      id: '1',
-      doctorName: 'Dr. Sarah Johnson',
-      doctorAvatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop',
-      specialty: 'Cardiología',
-      date: '2026-05-15',
-      time: '14:00',
-      type: 'presencial',
-      status: 'upcoming'
-    },
-    {
-      id: '2',
-      doctorName: 'Dr. Michael Chen',
-      doctorAvatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop',
-      specialty: 'Endocrinología',
-      date: '2026-04-25',
-      time: '10:00',
-      type: 'videollamada',
-      status: 'upcoming'
-    },
-    {
-      id: '3',
-      doctorName: 'Dr. Emily Rodriguez',
-      doctorAvatar: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&h=400&fit=crop',
-      specialty: 'Medicina General',
-      date: '2026-03-20',
-      time: '09:30',
-      type: 'presencial',
-      status: 'completed',
-      diagnosis: 'Chequeo anual - Todo normal',
-      notes: 'Continuar con estilo de vida saludable. Próxima cita en 6 meses.'
-    },
-    {
-      id: '4',
-      doctorName: 'Dr. Sarah Johnson',
-      doctorAvatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop',
-      specialty: 'Cardiología',
-      date: '2026-02-10',
-      time: '15:00',
-      type: 'presencial',
-      status: 'completed',
-      diagnosis: 'Hipertensión - Control de seguimiento',
-      notes: 'Presión arterial mejorada con medicación. Mantener tratamiento actual.'
-    }
-  ];
+  const [appointments, setAppointments] = useState<EnrichedAppointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const upcomingAppointments = appointments.filter(a => a.status === 'upcoming');
-  const pastAppointments = appointments.filter(a => a.status === 'completed');
+  useEffect(() => {
+    loadAppointments();
+  }, []);
+
+  const loadAppointments = async () => {
+    try {
+      setIsLoading(true);
+      const userId = Number(localStorage.getItem('authUserId'));
+      const userType = localStorage.getItem('authUserType');
+      if (!userId) return;
+
+      let data: AppointmentResponse[] = [];
+      if (userType === 'doctor') {
+        data = await getAppointmentsForDoctor(userId);
+      } else {
+        data = await getAppointmentsForPatient(userId);
+      }
+      
+      if (userType === 'doctor') {
+        // For doctors, we don't need to fetch doctor avatars, just use the patient name
+        setAppointments(data);
+      } else {
+        // Fetch doctor details to get avatars and specialties for patients
+        const enriched = await Promise.all(
+          data.map(async (app) => {
+            try {
+              const doc = await getDoctorById(app.doctorId);
+              return {
+                ...app,
+                doctorAvatar: doc.avatar,
+                specialty: doc.specialty
+              };
+            } catch {
+              return app;
+            }
+          })
+        );
+        setAppointments(enriched);
+      }
+    } catch (error) {
+      console.error('Error loading appointments:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const upcomingAppointments = appointments.filter(a => a.status === 'SCHEDULED');
+  const pastAppointments = appointments.filter(a => a.status === 'COMPLETED' || a.status === 'CANCELLED');
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = new Date(dateString + 'T00:00:00');
     return date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  const handleReschedule = (appointmentId: string) => {
+  const handleReschedule = (appointmentId: number) => {
     console.log('Reprogramando cita:', appointmentId);
-    alert('Funcionalidad de reprogramación disponible');
+    alert('Funcionalidad de reprogramación estará disponible pronto');
   };
+
+  if (isLoading) {
+    return <div className="text-center py-8 text-gray-500">Cargando consultas...</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -91,51 +92,61 @@ export function AppointmentHistory() {
                 className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start gap-4">
-                  <img
-                    src={appointment.doctorAvatar}
-                    alt={appointment.doctorName}
-                    className="w-16 h-16 rounded-full"
-                  />
+                  {localStorage.getItem('authUserType') !== 'doctor' && (
+                    <img
+                      src={appointment.doctorAvatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
+                      alt={appointment.doctorName}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  )}
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <h3 className="font-semibold text-gray-900">{appointment.doctorName}</h3>
-                        <p className="text-sm text-gray-600">{appointment.specialty}</p>
+                        {localStorage.getItem('authUserType') === 'doctor' ? (
+                           <h3 className="font-semibold text-gray-900">Paciente: {appointment.patientName}</h3>
+                        ) : (
+                           <>
+                             <h3 className="font-semibold text-gray-900">Dr(a). {appointment.doctorName}</h3>
+                             <p className="text-sm text-gray-600">{appointment.specialty || 'General'}</p>
+                           </>
+                        )}
                       </div>
-                      <button
-                        onClick={() => handleReschedule(appointment.id)}
-                        className="flex items-center gap-1 text-sm text-primary hover:opacity-80"
-                      >
-                        <Edit2 size={14} />
-                        Cambiar fecha
-                      </button>
+                      {localStorage.getItem('authUserType') !== 'doctor' && (
+                        <button
+                          onClick={() => handleReschedule(appointment.id)}
+                          className="flex items-center gap-1 text-sm text-primary hover:opacity-80"
+                        >
+                          <Edit2 size={14} />
+                          Cambiar fecha
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
                       <div className="flex items-center gap-1">
                         <Calendar size={16} />
-                        <span>{formatDate(appointment.date)}</span>
+                        <span className="capitalize">{formatDate(appointment.date)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar size={16} />
                         <span>{appointment.time}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        {appointment.type === 'presencial' ? (
-                          <>
-                            <MapPin size={16} />
-                            <span>Presencial</span>
-                          </>
-                        ) : (
+                        {appointment.reason.toLowerCase().includes('video') ? (
                           <>
                             <Video size={16} />
                             <span>Videollamada</span>
+                          </>
+                        ) : (
+                          <>
+                            <MapPin size={16} />
+                            <span>Presencial</span>
                           </>
                         )}
                       </div>
                     </div>
 
-                    {appointment.type === 'videollamada' && (
+                    {appointment.reason.toLowerCase().includes('video') && (
                       <button className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors text-sm">
                         Unirse a la videollamada
                       </button>
@@ -150,68 +161,67 @@ export function AppointmentHistory() {
 
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Consultas Pasadas</h2>
-        <div className="space-y-4">
-          {pastAppointments.map((appointment) => (
-            <div
-              key={appointment.id}
-              className="bg-white rounded-xl border border-gray-200 p-5"
-            >
-              <div className="flex items-start gap-4">
-                <img
-                  src={appointment.doctorAvatar}
-                  alt={appointment.doctorName}
-                  className="w-16 h-16 rounded-full"
-                />
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{appointment.doctorName}</h3>
-                      <p className="text-sm text-gray-600">{appointment.specialty}</p>
+        {pastAppointments.length === 0 ? (
+          <p className="text-gray-500 text-sm">No hay consultas pasadas registradas.</p>
+        ) : (
+          <div className="space-y-4">
+            {pastAppointments.map((appointment) => (
+              <div
+                key={appointment.id}
+                className="bg-white rounded-xl border border-gray-200 p-5"
+              >
+                <div className="flex items-start gap-4">
+                  {localStorage.getItem('authUserType') !== 'doctor' && (
+                    <img
+                      src={appointment.doctorAvatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
+                      alt={appointment.doctorName}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        {localStorage.getItem('authUserType') === 'doctor' ? (
+                           <h3 className="font-semibold text-gray-900">Paciente: {appointment.patientName}</h3>
+                        ) : (
+                           <>
+                             <h3 className="font-semibold text-gray-900">Dr(a). {appointment.doctorName}</h3>
+                             <p className="text-sm text-gray-600">{appointment.specialty || 'General'}</p>
+                           </>
+                        )}
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        appointment.status === 'COMPLETED' ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'
+                      }`}>
+                        {appointment.status === 'COMPLETED' ? 'Completada' : 'Cancelada'}
+                      </span>
                     </div>
-                    <span className="px-3 py-1 bg-green-400 text-green-900 rounded-full text-sm font-semibold">
-                      Completada
-                    </span>
-                  </div>
 
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
-                    <div className="flex items-center gap-1">
-                      <Calendar size={16} />
-                      <span>{formatDate(appointment.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {appointment.type === 'presencial' ? (
-                        <>
-                          <MapPin size={16} />
-                          <span>Presencial</span>
-                        </>
-                      ) : (
-                        <>
-                          <Video size={16} />
-                          <span>Videollamada</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {appointment.diagnosis && (
-                    <div className="bg-blue-100 border border-blue-400 rounded-lg p-4 mb-3">
-                      <div className="flex items-start gap-2">
-                        <FileText size={16} className="text-primary flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 mb-1">Diagnóstico</p>
-                          <p className="text-sm text-gray-700">{appointment.diagnosis}</p>
-                          {appointment.notes && (
-                            <p className="text-sm text-gray-600 mt-2">{appointment.notes}</p>
-                          )}
-                        </div>
+                    <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
+                      <div className="flex items-center gap-1">
+                        <Calendar size={16} />
+                        <span className="capitalize">{formatDate(appointment.date)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {appointment.reason.toLowerCase().includes('video') ? (
+                          <>
+                            <Video size={16} />
+                            <span>Videollamada</span>
+                          </>
+                        ) : (
+                          <>
+                            <MapPin size={16} />
+                            <span>Presencial</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
