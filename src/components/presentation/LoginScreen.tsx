@@ -4,20 +4,70 @@ import logo from '../../images/Logo (1).svg';
 import heroImage from '../../images/Rectangle 24.svg';
 
 interface LoginScreenProps {
-  onLogin: (userType: 'patient' | 'doctor') => void;
+  onLogin: (email: string, password: string) => Promise<void>;
+  onRegister: (payload: {
+    name: string;
+    email: string;
+    password: string;
+    phone: string;
+    userType: 'patient' | 'doctor';
+  }) => Promise<void>;
 }
 
-export function LoginScreen({ onLogin }: LoginScreenProps) {
+export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [userType, setUserType] = useState<'patient' | 'doctor'>('patient');
+  const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+    phone?: string;
+  }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(userType);
+    setError(null);
+    setValidationErrors({});
+    
+    if (!isLogin) {
+      const errors: typeof validationErrors = {};
+      if (name.length < 3) errors.name = 'El nombre debe tener al menos 3 caracteres';
+      if (password.length < 6) errors.password = 'La contraseña debe tener al menos 6 caracteres';
+      if (!/^\S+@\S+\.\S+$/.test(email)) errors.email = 'Correo electrónico inválido';
+      if (phone.length < 7) errors.phone = 'Teléfono inválido';
+      
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      if (isLogin) {
+        await onLogin(email, password);
+      } else {
+        await onRegister({
+          name,
+          email,
+          password,
+          phone,
+          userType,
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Authentication failed';
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -67,6 +117,11 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
           {!isLogin && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
@@ -81,6 +136,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
                   required
                 />
               </div>
+              {validationErrors.name && <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>}
             </div>
           )}
 
@@ -97,6 +153,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
                 required
               />
             </div>
+            {validationErrors.email && <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>}
           </div>
 
           {!isLogin && (
@@ -113,6 +170,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
                   required
                 />
               </div>
+              {validationErrors.phone && <p className="text-red-500 text-xs mt-1">{validationErrors.phone}</p>}
             </div>
           )}
 
@@ -129,6 +187,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
                 required
               />
             </div>
+            {validationErrors.password && <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>}
           </div>
 
           {!isLogin && (
@@ -161,9 +220,10 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
           <button
             type="submit"
-            className="w-full py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity font-semibold text-lg mt-6"
+            className="w-full py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity font-semibold text-lg mt-6 disabled:opacity-60"
+            disabled={isSubmitting}
           >
-            {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+            {isSubmitting ? 'Procesando...' : isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
           </button>
         </form>
 

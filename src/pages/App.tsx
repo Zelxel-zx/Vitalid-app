@@ -11,7 +11,7 @@ import { useHealthData } from '../hooks/useHealthData';
 import { View } from '../types';
 
 export default function App() {
-  const { isLoggedIn, userType, handleLogin, handleLogout } = useAuth();
+  const { isLoggedIn, userType, handleLogin, handleRegister, handleLogout } = useAuth();
   const { currentView, selectedDoctor, mobileMenuOpen, setCurrentView, setSelectedDoctor, toggleMobileMenu, handleDoctorClick } = useNavigation();
   const { doctors } = useDoctors();
   const { messages } = useChat(selectedDoctor);
@@ -19,7 +19,7 @@ export default function App() {
   const { bloodPressure, bloodSugar } = useHealthData();
 
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
   }
 
   const patientNavItems = [
