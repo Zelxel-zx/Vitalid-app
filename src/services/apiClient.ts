@@ -14,7 +14,8 @@ async function parseJson(response: Response) {
 }
 
 export async function request<T>(path: string, options: RequestInit = {}) {
-  const url = path.startsWith('/api') ? path : `/api${path}`;
+  const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
+  const url = path.startsWith('http') ? path : `${apiBase}${path.startsWith('/') ? path : `/${path}`}`;
   const token = localStorage.getItem('authToken');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
