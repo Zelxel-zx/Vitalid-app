@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitalid app</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jockey+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.0/dist/confetti.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Colors */
+        :root {
+            --primary: #00C2CB;
+            --dark: #1A1A1A;
+            --gray-600: #455A64;
+            --gray-400: #E5E5E5;
+            --green: #4CAF50;
+            --yellow: #E3C65F;
+            --red: #E53935;
+            --white: #FFFFFF;
+        }
+
+        /* Utility Classes */
+        .container {
+            max-width: 80rem;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        .section {
+            padding: 5rem 1.5rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mb-8 { margin-bottom: 2rem; }
+        .mb-12 { margin-bottom: 3rem; }
+        .mb-16 { margin-bottom: 4rem; }
+
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-8 { margin-top: 2rem; }
+        .mt-16 { margin-top: 4rem; }
+
+        .px-4 { padding: 0 1rem; }
+        .px-6 { padding: 0 1.5rem; }
+        .px-8 { padding: 0 2rem; }
+        .px-10 { padding: 0 2.5rem; }
+
+        .py-2 { padding: 0.5rem 0; }
+        .py-4 { padding: 1rem 0; }
+        .py-5 { padding: 1.25rem 0; }
+        .py-6 { padding: 1.5rem 0; }
+        .py-8 { padding: 2rem 0; }
+        .py-20 { padding: 5rem 0; }
+        .py-24 { padding: 6rem 0; }
+
+        .p-4 { padding: 1rem; }
+        .p-5 { padding: 1.25rem; }
+        .p-6 { padding: 1.5rem; }
+        .p-8 { padding: 2rem; }
+        .p-10 { padding: 2.5rem; }
+        .p-12 { padding: 3rem; }
+
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .flex-row { flex-direction: row; }
+        .items-center { align-items: center; }
+        .items-start { align-items: flex-start; }
+        .justify-center { justify-content: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-1 { gap: 0.25rem; }
+        .gap-3 { gap: 0.75rem; }
+        .gap-4 { gap: 1rem; }
+        .gap-6 { gap: 1.5rem; }
+        .gap-8 { gap: 2rem; }
+        .gap-12 { gap: 3rem; }
+
+        .grid {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+        .space-y-3 > * + * { margin-top: 0.75rem; }
+        .space-y-4 > * + * { margin-top: 1rem; }
+        .space-y-6 > * + * { margin-top: 1.5rem; }
+
+        /* Typography */
+        h1 {
+            font-size: 3.75rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        h2 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        h3 {
+            font-size: 1.875rem;
+            font-weight: 700;
+        }
+
+        h4 {
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        p {
+            line-height: 1.6;
+        }
+
+        .text-lg { font-size: 1.125rem; }
+        .text-xl { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.5rem; }
+        .text-3xl { font-size: 1.875rem; }
+        .text-4xl { font-size: 2.25rem; }
+        .text-5xl { font-size: 3rem; }
+        .text-6xl { font-size: 3.75rem; }
+
+        .text-white { color: var(--white); }
+        .text-dark { color: var(--dark); }
+        .text-gray-400 { color: #9ca3af; }
+        .text-gray-600 { color: var(--gray-600); }
+        .text-primary { color: var(--primary); }
+
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+
+        .leading-relaxed { line-height: 1.75; }
+
+        /* Buttons */
+        .button {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .button-primary {
+            background: var(--primary);
+            color: var(--white);
+            box-shadow: 0 10px 25px rgba(0, 194, 203, 0.3);
+        }
+
+        .button-primary:hover {
+            background: #00a5ae;
+            box-shadow: 0 15px 30px rgba(0, 194, 203, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .button-secondary {
+            background: var(--white);
+            color: var(--dark);
+            border: 2px solid rgba(0, 194, 203, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .button-secondary:hover {
+            background: #f9fafb;
+        }
+
+        .button-white {
+            background: var(--white);
+            color: var(--primary);
+            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .button-white:hover {
+            background: #f0f0f0;
+            box-shadow: 0 25px 30px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .button-ghost {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--white);
+            border: 2px solid var(--white);
+        }
+
+        .button-ghost:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Cards */
+        .card {
+            background: var(--white);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .card:hover {
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transform: translateY(-4px);
+            border-color: rgba(0, 194, 203, 0.2);
+        }
+
+        .card-light {
+            background: rgba(229, 229, 229, 0.5);
+        }
+
+        .card-dark {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card-dark:hover {
+            border-color: var(--red);
+        }
+
+        /* Sections */
+        .bg-white { background: var(--white); }
+        .bg-gray { background: var(--gray-400); }
+        .bg-dark { background: var(--dark); }
+        .bg-primary { background: var(--primary); }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(to bottom right, rgba(0, 194, 203, 0.1), var(--gray-400));
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0.05;
+        }
+
+        .hero-blob-1 {
+            position: absolute;
+            width: 16rem;
+            height: 16rem;
+            background: var(--primary);
+            border-radius: 100%;
+            filter: blur(80px);
+            top: 5rem;
+            left: 5rem;
+        }
+
+        .hero-blob-2 {
+            position: absolute;
+            width: 24rem;
+            height: 24rem;
+            background: var(--primary);
+            border-radius: 100%;
+            filter: blur(80px);
+            bottom: 5rem;
+            right: 5rem;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            max-width: 56rem;
+            margin: 0 auto;
+        }
+
+        .hero-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
+        .hero-logo-icon {
+            position: relative;
+            width: 4rem;
+            height: 4rem;
+        }
+
+        .hero-logo-heart {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .hero h1 {
+            font-family: 'Jockey One', sans-serif;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-tagline {
+            font-size: 1.25rem;
+            color: var(--gray-600);
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h2 {
+            font-size: 2.5rem;
+            color: var(--dark);
+            margin-bottom: 2rem;
+            line-height: 1.2;
+        }
+
+        .hero h2 .highlight {
+            color: var(--primary);
+        }
+
+        .hero-description {
+            font-size: 1.125rem;
+            color: var(--gray-600);
+            margin-bottom: 3rem;
+            max-width: 42rem;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 4rem;
+        }
+
+        @media (min-width: 640px) {
+            .hero-buttons {
+                flex-direction: row;
+            }
+        }
+
+        .hero-image {
+            margin-top: 4rem;
+            position: relative;
+        }
+
+        .hero-image-container {
+            background: var(--white);
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            max-width: 64rem;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        .hero-image-container img {
+            width: 100%;
+            height: auto;
+            border-radius: 0.75rem;
+        }
+
+        .hero-floating-card {
+            position: absolute;
+            background: var(--white);
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            max-width: 16rem;
+        }
+
+        .floating-card-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .floating-card-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        /* Problem Statement */
+        .problem-bg {
+            background: linear-gradient(to bottom right, var(--dark), var(--gray-600));
+            color: var(--white);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .problem-blob {
+            position: absolute;
+            width: 24rem;
+            height: 24rem;
+            background: var(--primary);
+            border-radius: 100%;
+            filter: blur(80px);
+            opacity: 0.05;
+        }
+
+        .problem-blob-1 {
+            top: 0;
+            left: 0;
+        }
+
+        .problem-blob-2 {
+            bottom: 0;
+            right: 0;
+        }
+
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        @media (min-width: 768px) {
+            .problem-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .problem-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .problem-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 10;
+        }
+
+        .problem-card:hover {
+            border-color: var(--red);
+        }
+
+        .problem-card:nth-child(2n) {
+            border-top-color: var(--yellow);
+        }
+
+        .problem-card:nth-child(2n+1) {
+            border-top-color: var(--red);
+        }
+
+        .problem-card-icon {
+            width: 3.5rem;
+            height: 3.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .problem-card-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .problem-card p {
+            font-size: 0.875rem;
+        }
+
+        .problem-solution {
+            background: linear-gradient(to right, var(--primary), rgba(0, 194, 203, 0.8));
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .problem-solution h3 {
+            font-size: 1.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .problem-solution p {
+            font-size: 1.25rem;
+            opacity: 0.95;
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .features-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .feature-card {
+            background: rgba(229, 229, 229, 0.5);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transform: translateY(-4px);
+            border-color: rgba(0, 194, 203, 0.2);
+        }
+
+        .feature-icon {
+            width: 4rem;
+            height: 4rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-icon svg {
+            width: 2rem;
+            height: 2rem;
+            stroke-width: 2;
+        }
+
+        .feature-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-description {
+            color: var(--gray-600);
+            line-height: 1.6;
+        }
+
+        /* Benefits Section */
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 4rem;
+            margin-bottom: 4rem;
+        }
+
+        @media (min-width: 768px) {
+            .benefits-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 3rem;
+                align-items: center;
+            }
+        }
+
+        .benefit-image {
+            background: var(--white);
+            border-radius: 1.5rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            overflow: hidden;
+        }
+
+        .benefit-image img {
+            width: 100%;
+            height: auto;
+            border-radius: 0.75rem;
+        }
+
+        .benefit-content h3 {
+            font-size: 1.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .benefit-content p {
+            font-size: 1.125rem;
+            color: var(--gray-600);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .checklist-icon {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 0.25rem;
+        }
+
+        .checklist-icon svg {
+            width: 1rem;
+            height: 1rem;
+            stroke: var(--white);
+        }
+
+        .checklist-text {
+            color: var(--gray-600);
+        }
+
+        /* How It Works */
+        .steps-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5rem;
+            margin-bottom: 5rem;
+        }
+
+        .step {
+            display: grid;
+            gap: 3rem;
+        }
+
+        @media (min-width: 1024px) {
+            .step {
+                grid-template-columns: 1fr 1fr;
+                align-items: center;
+            }
+        }
+
+        .step-content h3 {
+            font-size: 1.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .step-badge {
+            display: inline-block;
+            background: rgba(0, 194, 203, 0.1);
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-badge span {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .step-image {
+            background: var(--gray-400);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1);
+        }
+
+        .step-image img {
+            width: 100%;
+            height: auto;
+            border-radius: 0.75rem;
+        }
+
+        .step-highlight {
+            background: linear-gradient(to right, rgba(0, 194, 203, 0.1), rgba(0, 194, 203, 0.05));
+            border-left: 4px solid var(--primary);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .step-highlight p {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .step-highlight .text {
+            color: var(--gray-600);
+        }
+
+        .step-boxes {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .step-box {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--white);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid;
+        }
+
+        .step-box-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .step-box-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .step-box-content p:first-child {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .step-box-content p:last-child {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+
+        /* Testimonials */
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        @media (min-width: 768px) {
+            .testimonials-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .testimonial {
+            background: var(--white);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .testimonial:hover {
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border-color: rgba(0, 194, 203, 0.2);
+        }
+
+        .stars {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .star {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: var(--yellow);
+        }
+
+        .testimonial-quote {
+            color: rgba(0, 194, 203, 0.2);
+            width: 2.5rem;
+            height: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .testimonial-content {
+            color: var(--gray-600);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+            font-style: italic;
+        }
+
+        .testimonial-footer {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 1rem;
+        }
+
+        .testimonial-name {
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .testimonial-role {
+            font-size: 0.875rem;
+            color: var(--primary);
+        }
+
+        .testimonial-location {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        .stats-section {
+            background: linear-gradient(to right, var(--white), rgba(0, 194, 203, 0.05));
+            border-radius: 1.5rem;
+            padding: 3rem;
+            border: 2px solid rgba(0, 194, 203, 0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 3rem;
+            text-align: center;
+        }
+
+        @media (min-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .stat-label {
+            font-size: 1.125rem;
+            color: var(--gray-600);
+        }
+
+        /* CTA Section */
+        .cta-bg {
+            background: linear-gradient(to bottom right, var(--primary), rgba(0, 194, 203, 0.9));
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-blob {
+            position: absolute;
+            background: var(--white);
+            border-radius: 100%;
+            filter: blur(80px);
+            opacity: 0.1;
+        }
+
+        .cta-blob-1 {
+            width: 24rem;
+            height: 24rem;
+            top: 0;
+            right: 0;
+        }
+
+        .cta-blob-2 {
+            width: 24rem;
+            height: 24rem;
+            bottom: 0;
+            left: 0;
+        }
+
+        .cta-content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+        }
+
+        .cta-content h2 {
+            color: var(--white);
+            font-size: 2.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cta-content p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            max-width: 42rem;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-cards {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        @media (min-width: 768px) {
+            .cta-cards {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .cta-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .cta-card-icon {
+            width: 4rem;
+            height: 4rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+        }
+
+        .cta-card-icon svg {
+            width: 2rem;
+            height: 2rem;
+            stroke: var(--white);
+        }
+
+        .cta-card h3 {
+            color: var(--white);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .cta-card p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @media (min-width: 640px) {
+            .cta-buttons {
+                flex-direction: row;
+            }
+        }
+
+        .cta-footer {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.875rem;
+            margin-top: 2rem;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--dark);
+            color: var(--white);
+            padding: 4rem 1.5rem;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        @media (min-width: 768px) {
+            .footer-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .footer-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .footer-section h4 {
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .footer-section a {
+            color: #9ca3af;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-section a:hover {
+            color: var(--primary);
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-section li.contact-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .footer-section li.contact-item svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            stroke: var(--primary);
+            flex-shrink: 0;
+            margin-top: 0.125rem;
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-brand h3 {
+            font-family: 'Jockey One', sans-serif;
+            font-size: 1.5rem;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid #374151;
+            padding-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            .footer-bottom {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
+        .footer-bottom p {
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.875rem;
+        }
+
+        .footer-links a {
+            color: #9ca3af;
+            text-decoration: none;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        /* Animations */
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .bounce-slow {
+            animation: bounce-slow 3s ease-in-out infinite;
+        }
+
+        .bounce-slow-delayed {
+            animation: bounce-slow 3s ease-in-out 1s infinite;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 { font-size: 2.25rem; }
+            h2 { font-size: 1.875rem; }
+            h3 { font-size: 1.5rem; }
+            
+            .hero h1 { font-size: 2.25rem; }
+            .hero h2 { font-size: 1.875rem; }
+            
+            .hero-floating-card {
+                display: none;
+            }
+
+            .button {
+                width: 100%;
+                justify-content: center;
+                padding: 1rem 2rem;
+            }
+
+            .hero-buttons {
+                width: 100%;
+            }
+
+            .cta-buttons {
+                width: 100%;
+            }
+
+            .button {
+                width: auto;
+            }
+
+            .hero-buttons .button,
+            .cta-buttons .button {
+                width: 100%;
+            }
+
+            @media (min-width: 640px) {
+                .hero-buttons .button,
+                .cta-buttons .button {
+                    width: auto;
+                }
+            }
+        }
+
+        /* Icon colors */
+        .icon-cyan { fill: none; stroke: var(--primary); }
+        .icon-green { fill: none; stroke: var(--green); }
+        .icon-yellow { fill: none; stroke: var(--yellow); }
+        .icon-red { fill: none; stroke: var(--red); }
+        .icon-gray { fill: none; stroke: var(--gray-600); }
+
+        .icon-bg-cyan { background: rgba(0, 194, 203, 0.1); }
+        .icon-bg-green { background: rgba(76, 175, 80, 0.1); }
+        .icon-bg-yellow { background: rgba(227, 198, 95, 0.1); }
+        .icon-bg-red { background: rgba(229, 57, 53, 0.1); }
+        .icon-bg-gray { background: rgba(69, 90, 100, 0.1); }
+
+        .opacity-5 { opacity: 0.05; }
+        .opacity-10 { opacity: 0.1; }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (min-width: 1024px) {
+            .hidden {
+                display: block;
+            }
+        }
+
+        .order-1 { order: 1; }
+        .order-2 { order: 2; }
+
+        @media (min-width: 1024px) {
+            .lg\:order-1 { order: 1; }
+            .lg\:order-2 { order: 2; }
+        }
+
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .inset-0 {
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+        }
+
+        .overflow-hidden { overflow: hidden; }
+
+        .max-w-xs { max-width: 20rem; }
+        .max-w-2xl { max-width: 42rem; }
+        .max-w-3xl { max-width: 48rem; }
+        .max-w-4xl { max-width: 56rem; }
+        .max-w-6xl { max-width: 72rem; }
+        .max-w-7xl { max-width: 80rem; }
+
+        .mx-auto { margin-left: auto; margin-right: auto; }
+
+        .w-full { width: 100%; }
+        .h-auto { height: auto; }
+
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-2xl { border-radius: 1.5rem; }
+
+        .shadow-lg { box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); }
+        .shadow-xl { box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1); }
+        .shadow-2xl { box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1); }
+        .shadow-md { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+
+        .transition-all { transition: all 0.3s ease; }
+        .transition-colors { transition: color 0.3s ease; }
+        .transition-transform { transition: transform 0.3s ease; }
+
+        .transform { transform: translate(0); }
+        .hover\:-translate-y-1:hover { transform: translateY(-4px); }
+        .hover\:-translate-y-2:hover { transform: translateY(-8px); }
+
+        .pointer-events-none { pointer-events: none; }
+        .pointer-events-auto { pointer-events: auto; }
+
+        .italic { font-style: italic; }
+
+        .group {
+            position: relative;
+        }
+
+        .group:hover .group-hover\:translate-x-1 {
+            transform: translateX(4px);
+        }
+    </style>
+</head>
+<body>
+    <!-- HERO SECTION -->
+    <section class="hero">
+        <div class="hero-blob-1"></div>
+        <div class="hero-blob-2"></div>
+
+        <div class="hero-content">
+            <!-- Logo -->
+            <div class="hero-logo">
+                <img src="/images/Logo (1).svg" alt="Vitalid Logo" style="width: 80px; height: auto;">
+                <h1 class="font-bold" style="margin: 0; text-align: left;">Vitalid</h1>
+            </div>
+
+            <!-- Tagline -->
+            <p class="hero-tagline">Telemedicina y seguimiento de tratamientos en Lima, Perú</p>
+
+            <!-- Main Heading -->
+            <h2>
+                Evita largas esperas y<br>
+                <span class="highlight">cumple tu tratamiento médico</span>
+            </h2>
+
+            <!-- Description -->
+            <p class="hero-description">
+                La plataforma de telemedicina que conecta pacientes y médicos en Lima. Agenda citas, recibe recordatorios de medicación y mantén comunicación directa con tu doctor, todo desde tu celular.
+            </p>
+
+            <!-- Buttons -->
+            <div class="hero-buttons">
+                <a href="./app.html" class="button button-primary">Comenzar Ahora</a>
+                <button class="button button-secondary">Ver Demo</button>
+            </div>
+
+            <!-- Hero Image -->
+            <div class="hero-image">
+                <div class="hero-image-container">
+                    <img src="/images/hero-app.jpg" alt="Vitalid App en smartphone con estetoscopio" onerror="this.src='https://placehold.co/1080x720/cccccc/999999?text=Healthcare+App'">
+                </div>
+
+                <!-- Floating Cards -->
+                <div class="hero-floating-card bounce-slow" style="left: -40px; top: 80px;">
+                    <div class="flex gap-3 items-center">
+                        <div class="floating-card-icon icon-bg-cyan">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2">
+                                <path d="M9 11l3 3L22 4"></path>
+                                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-dark" style="margin: 0; font-size: 0.875rem;">Checklist Digital</p>
+                            <p class="text-gray-600" style="margin: 0; font-size: 0.75rem;">Marca cada dosis tomada</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-floating-card bounce-slow-delayed" style="right: -40px; bottom: 80px;">
+                    <div class="flex gap-3 items-center">
+                        <div class="floating-card-icon" style="background: rgba(76, 175, 80, 0.1);">
+                            <svg viewBox="0 0 24 24" fill="var(--green)" stroke="none">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-dark" style="margin: 0; font-size: 0.875rem;">Sin largas esperas</p>
+                            <p class="text-gray-600" style="margin: 0; font-size: 0.75rem;">Atención desde casa</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROBLEM STATEMENT SECTION -->
+    <section class="section problem-bg">
+        <div class="problem-blob problem-blob-1"></div>
+        <div class="problem-blob problem-blob-2"></div>
+
+        <div class="container">
+            <div class="text-center mb-16">
+                <h2 class="text-white">La Realidad del Sistema de Salud en Lima</h2>
+                <p class="text-xl text-white" style="opacity: 0.8;">Barreras que enfrentan pacientes y médicos en el acceso y seguimiento de servicios de salud</p>
+            </div>
+
+            <div class="problem-grid">
+                <div class="problem-card">
+                    <div class="problem-card-icon" style="background: rgba(229, 57, 53, 0.2);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#E53935" stroke-width="2" style="width: 1.75rem; height: 1.75rem;">
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <path d="M12 6v6m0 4v2"></path>
+                        </svg>
+                    </div>
+                    <div class="problem-card-number">2-4 horas</div>
+                    <p>Tiempo promedio de espera en centros médicos saturados</p>
+                </div>
+
+                <div class="problem-card">
+                    <div class="problem-card-icon" style="background: rgba(227, 198, 95, 0.2);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#E3C65F" stroke-width="2" style="width: 1.75rem; height: 1.75rem;">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 17"></polyline>
+                            <polyline points="17 6 23 6 23 12"></polyline>
+                        </svg>
+                    </div>
+                    <div class="problem-card-number">50-60%</div>
+                    <p>Tasa de baja adherencia a medicación en tratamientos crónicos</p>
+                </div>
+
+                <div class="problem-card">
+                    <div class="problem-card-icon" style="background: rgba(229, 57, 53, 0.2);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#E53935" stroke-width="2" style="width: 1.75rem; height: 1.75rem;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                    </div>
+                    <div class="problem-card-number">Limitada</div>
+                    <p>Continuidad en seguimiento de pacientes post-consulta</p>
+                </div>
+
+                <div class="problem-card">
+                    <div class="problem-card-icon" style="background: rgba(227, 198, 95, 0.2);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#E3C65F" stroke-width="2" style="width: 1.75rem; height: 1.75rem;">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <div class="problem-card-number">Escasa</div>
+                    <p>Comunicación directa entre paciente y médico durante tratamiento</p>
+                </div>
+            </div>
+
+            <div class="problem-solution">
+                <h3>Vitalid es la Solución Digital</h3>
+                <p>Una plataforma integral que combina telemedicina, seguimiento activo de tratamientos y comunicación continua para mejorar resultados en salud y reducir complicaciones.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES SECTION -->
+    <section class="section bg-white">
+        <div class="container">
+            <div class="text-center mb-16">
+                <h2 class="text-dark">Soluciones Integrales de Telemedicina</h2>
+                <p class="text-lg text-gray-600">Diseñado para mayores de 18 años que requieren atención médica constante y profesionales de salud que buscan mejorar la relación con sus pacientes</p>
+            </div>
+
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-bg-cyan">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2">
+                            <path d="M9 11l3 3L22 4"></path>
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Checklist Digital de Recetas</h3>
+                    <p class="feature-description">Sistema de seguimiento basado en tu receta médica. Marca cada dosis tomada y mantén un registro digital completo de tu tratamiento.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-bg-green">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Agendamiento de Citas</h3>
+                    <p class="feature-description">Programa consultas médicas sin largas esperas en centros de salud saturados. Telemedicina y citas presenciales en un solo lugar.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon icon-bg-cyan">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Chat Directo con tu Doctor</h3>
+                    <p class="feature-description">Canal de comunicación durante todo el periodo de tratamiento. Resuelve dudas y recibe acompañamiento continuo de tu médico.</p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: rgba(227, 198, 95, 0.1);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2">
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <path d="M12 1v6m0 6v6"></path>
+                            <path d="M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24"></path>
+                            <path d="M1 12h6m6 0h6"></path>
+                            <path d="M4.22 19.78l4.24-4.24m2.12-2.12l4.24-4.24"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Recordatorios Automáticos</h3>
+                    <p class="feature-description">Mejora tu adherencia a la medicación con alertas personalizadas. Reduce olvidos y cumple tu tratamiento correctamente.</p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: rgba(69, 90, 100, 0.1);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--gray-600)" stroke-width="2">
+                            <line x1="12" y1="2" x2="12" y2="22"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Seguimiento de Tratamiento</h3>
+                    <p class="feature-description">Visualiza tu progreso con gráficas de adherencia. Comparte reportes con tu médico para mejorar resultados en salud.</p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: rgba(229, 57, 53, 0.1);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Orientación en Salud Mental</h3>
+                    <p class="feature-description">Acceso a profesionales de salud mental y recursos de bienestar emocional como parte integral de tu cuidado.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BENEFITS SECTION -->
+    <section class="section bg-gray">
+        <div class="container">
+            <div class="text-center mb-16">
+                <h2 class="text-dark">El Problema que Resolvemos</h2>
+                <p class="text-lg text-gray-600">En Lima, los centros médicos están saturados con tiempos de espera prolongados. Además, existe una baja adherencia a la medicación por falta de seguimiento. <span class="text-primary font-semibold">Vitalid digitaliza tu atención en salud.</span></p>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Benefit 1 -->
+                <div class="benefits-grid">
+                    <div class="order-2 md:order-1">
+                        <h3 class="text-dark">Telemedicina: Evita Saturación y Esperas</h3>
+                        <p class="text-gray-600">En Lima, la saturación de hospitales y clínicas genera esperas de horas para una consulta de 10 minutos. Con Vitalid, accedes a consultas virtuales con especialistas verificados desde la comodidad de tu hogar.</p>
+                        <div class="space-y-3">
+                            <div class="checklist-item">
+                                <div class="checklist-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="checklist-text">Consultas programadas sin tiempos de espera</span>
+                            </div>
+                            <div class="checklist-item">
+                                <div class="checklist-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="checklist-text">Atención desde casa, sin desplazamientos en Lima</span>
+                            </div>
+                            <div class="checklist-item">
+                                <div class="checklist-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="checklist-text">Historial médico digital y accesible</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="order-1 md:order-2">
+                        <div class="benefit-image">
+                            <img src="/images/telemedicine.jpg" alt="Consulta médica virtual" onerror="this.src='https://placehold.co/1080x720/cccccc/999999?text=Telemedicine'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Benefit 2 -->
+                <div class="benefits-grid">
+                    <div class="benefit-image">
+                        <img src="/images/medication.jpg" alt="Gestión de medicamentos" onerror="this.src='https://placehold.co/1080x720/cccccc/999999?text=Medication'">
+                    </div>
+                    <div>
+                        <h3 class="text-dark">Checklist Digital: Mejora tu Adherencia</h3>
+                        <p class="text-gray-600">La baja adherencia a la medicación es uno de los mayores problemas en salud. Vitalid convierte tu receta médica en un checklist digital donde marcas cada dosis tomada, recibiendo recordatorios automáticos para nunca olvidar.</p>
+                        <div class="step-boxes">
+                            <div class="step-box" style="border-color: var(--green);">
+                                <div class="step-box-icon" style="background: rgba(76, 175, 80, 0.1);">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="step-box-content">
+                                    <p>Checklist basado en tu receta</p>
+                                    <p>Marca cada dosis y visualiza tu progreso</p>
+                                </div>
+                            </div>
+                            <div class="step-box" style="border-color: var(--primary);">
+                                <div class="step-box-icon" style="background: rgba(0, 194, 203, 0.1);">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2">
+                                        <circle cx="12" cy="12" r="1"></circle>
+                                        <path d="M12 1v6m0 6v6"></path>
+                                        <path d="M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24"></path>
+                                        <path d="M1 12h6m6 0h6"></path>
+                                        <path d="M4.22 19.78l4.24-4.24m2.12-2.12l4.24-4.24"></path>
+                                    </svg>
+                                </div>
+                                <div class="step-box-content">
+                                    <p>Recordatorios personalizados</p>
+                                    <p>Notificaciones según tu horario y tratamiento</p>
+                                </div>
+                            </div>
+                            <div class="step-box" style="border-color: var(--yellow);">
+                                <div class="step-box-icon" style="background: rgba(227, 198, 95, 0.1);">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2">
+                                        <line x1="12" y1="2" x2="12" y2="22"></line>
+                                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                    </svg>
+                                </div>
+                                <div class="step-box-content">
+                                    <p>Gráficas de adherencia</p>
+                                    <p>Comparte tu evolución con tu médico</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS SECTION -->
+    <section class="section bg-white">
+        <div class="container">
+            <div class="text-center mb-16">
+                <h2 class="text-dark">Cómo Funciona Vitalid</h2>
+                <p class="text-lg text-gray-600">Interfaz diseñada para máxima legibilidad y facilidad de uso en la gestión de tu salud</p>
+            </div>
+
+            <div class="steps-container">
+                <!-- Step 1 -->
+                <div class="step">
+                    <div class="step-content">
+                        <div class="step-badge">
+                            <span>Paso 1</span>
+                        </div>
+                        <h3 class="text-dark">Dashboard de Adherencia</h3>
+                        <p class="text-gray-600">Visualiza tu progreso de adherencia al tratamiento con gráficas claras. El sistema registra automáticamente cada dosis confirmada y te muestra tu porcentaje de cumplimiento.</p>
+                        <div class="space-y-3">
+                            <div class="checklist-item">
+                                <div class="checklist-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="checklist-text">Gráfica de progreso semanal y mensual</span>
+                            </div>
+                            <div class="checklist-item">
+                                <div class="checklist-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="checklist-text">Resumen de medicamentos activos</span>
+                            </div>
+                            <div class="checklist-item">
+                                <div class="checklist-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="checklist-text">Estadísticas compartibles con tu médico</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-image">
+                        <img src="/images/dashboard.jpg" alt="Dashboard de adherencia Vitalid" onerror="this.src='https://placehold.co/1080x720/cccccc/999999?text=Dashboard'">
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="step">
+                    <div class="order-2 lg:order-1 step-image">
+                        <img src="/images/checklist.jpg" alt="Checklist de medicamentos" onerror="this.src='https://placehold.co/1080x720/cccccc/999999?text=Checklist'">
+                    </div>
+                    <div class="order-1 lg:order-2 step-content">
+                        <div class="step-badge">
+                            <span>Paso 2</span>
+                        </div>
+                        <h3 class="text-dark">Checklist Digital de Medicamentos</h3>
+                        <p class="text-gray-600">Tu receta médica se convierte en un checklist interactivo. Marca cada dosis tomada, visualiza tu progreso diario y recibe recordatorios personalizados según tu horario.</p>
+                        <div class="step-highlight">
+                            <p>Valor Diferencial</p>
+                            <p class="text">El checklist se sincroniza con tu receta médica real, asegurando que sigas el tratamiento exacto prescrito por tu doctor.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="step">
+                    <div class="step-content">
+                        <div class="step-badge">
+                            <span>Paso 3</span>
+                        </div>
+                        <h3 class="text-dark">Gestión de Citas Médicas</h3>
+                        <p class="text-gray-600">Agenda consultas virtuales o presenciales sin largas esperas. Filtra por especialidad, ve la disponibilidad en tiempo real y recibe recordatorios automáticos de tus citas próximas.</p>
+                        <div class="step-boxes">
+                            <div class="step-box" style="border-color: var(--green);">
+                                <div class="step-box-icon" style="background: rgba(76, 175, 80, 0.1);">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="step-box-content">
+                                    <p>Telemedicina</p>
+                                    <p>Consultas desde casa</p>
+                                </div>
+                            </div>
+                            <div class="step-box" style="border-color: var(--primary);">
+                                <div class="step-box-icon" style="background: rgba(0, 194, 203, 0.1);">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                </div>
+                                <div class="step-box-content">
+                                    <p>Historial Completo</p>
+                                    <p>Accede a consultas pasadas</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-image">
+                        <img src="/images/appointments.jpg" alt="Gestión de citas médicas" onerror="this.src='https://placehold.co/1080x720/cccccc/999999?text=Appointments'">
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="step">
+                    <div class="order-2 lg:order-1 step-image">
+                        <img src="/images/chat.jpg" alt="Chat con especialistas" onerror="this.src='https://placehold.co/1080x720/cccccc/999999?text=Chat'">
+                    </div>
+                    <div class="order-1 lg:order-2 step-content">
+                        <div class="step-badge">
+                            <span>Paso 4</span>
+                        </div>
+                        <h3 class="text-dark">Chat Directo con tu Médico</h3>
+                        <p class="text-gray-600">Canal de comunicación permanente durante tu tratamiento. Responde dudas sobre tus síntomas, medicamentos o evolución sin esperar a la próxima cita programada.</p>
+                        <div class="step-highlight">
+                            <p>Soporte Continuo</p>
+                            <p class="text">Comunicación directa con especialistas verificados que dan seguimiento a tu caso de forma personalizada.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TESTIMONIALS SECTION -->
+    <section class="section" style="background: linear-gradient(to bottom right, var(--gray-400), var(--white));">
+        <div class="container">
+            <div class="text-center mb-16">
+                <h2 class="text-dark">Lo que dicen nuestros usuarios</h2>
+                <p class="text-lg text-gray-600">Pacientes y profesionales en Lima que ya transformaron su experiencia en salud</p>
+            </div>
+
+            <div class="testimonials-grid">
+                <!-- Testimonial 1 -->
+                <div class="testimonial">
+                    <div class="stars">
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                    </div>
+                    <svg class="testimonial-quote" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 21c3 0 7-1 7-8V5c0-1.25-4.45-5-7-5-1.25 0-2.4.75-2.4 2.972C.6 11 .6 16 3 21z"></path>
+                        <path d="M15 21c3 0 7-1 7-8V5c0-1.25-4.45-5-7-5-1.25 0-2.4.75-2.4 2.972C13.6 11 13.6 16 15 21z"></path>
+                    </svg>
+                    <p class="testimonial-content">"Antes olvidaba mis dosis de insulina constantemente. Con el checklist digital de Vitalid, mi adherencia mejoró del 60% al 95%. Mi doctor está muy contento con los resultados."</p>
+                    <div class="testimonial-footer">
+                        <p class="testimonial-name">María Gonzales</p>
+                        <p class="testimonial-role">Paciente con diabetes tipo 2</p>
+                        <p class="testimonial-location">San Isidro, Lima</p>
+                    </div>
+                </div>
+
+                <!-- Testimonial 2 -->
+                <div class="testimonial">
+                    <div class="stars">
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                    </div>
+                    <svg class="testimonial-quote" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 21c3 0 7-1 7-8V5c0-1.25-4.45-5-7-5-1.25 0-2.4.75-2.4 2.972C.6 11 .6 16 3 21z"></path>
+                        <path d="M15 21c3 0 7-1 7-8V5c0-1.25-4.45-5-7-5-1.25 0-2.4.75-2.4 2.972C13.6 11 13.6 16 15 21z"></path>
+                    </svg>
+                    <p class="testimonial-content">"Como médico, Vitalid me permite dar seguimiento continuo a mis pacientes sin saturar mi agenda. El chat durante el tratamiento reduce significativamente las consultas de emergencia."</p>
+                    <div class="testimonial-footer">
+                        <p class="testimonial-name">Dr. Carlos Mendoza</p>
+                        <p class="testimonial-role">Médico Internista</p>
+                        <p class="testimonial-location">Clínica en Miraflores</p>
+                    </div>
+                </div>
+
+                <!-- Testimonial 3 -->
+                <div class="testimonial">
+                    <div class="stars">
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                        <svg class="star" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="12 2 15.09 10.26 23.77 10.26 17.13 15.28 19.09 23.53 12 18.51 4.91 23.53 6.87 15.28 0.23 10.26 8.91 10.26"></polygon>
+                        </svg>
+                    </div>
+                    <svg class="testimonial-quote" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 21c3 0 7-1 7-8V5c0-1.25-4.45-5-7-5-1.25 0-2.4.75-2.4 2.972C.6 11 .6 16 3 21z"></path>
+                        <path d="M15 21c3 0 7-1 7-8V5c0-1.25-4.45-5-7-5-1.25 0-2.4.75-2.4 2.972C13.6 11 13.6 16 15 21z"></path>
+                    </svg>
+                    <p class="testimonial-content">"Ya no pierdo 3 horas en el hospital para una consulta de 10 minutos. Las videoconsultas son igual de efectivas y puedo hacerlas desde mi oficina."</p>
+                    <div class="testimonial-footer">
+                        <p class="testimonial-name">Jorge Ramírez</p>
+                        <p class="testimonial-role">Paciente con hipertensión</p>
+                        <p class="testimonial-location">Surco, Lima</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-section">
+                <div class="stats-grid">
+                    <div>
+                        <div class="stat-number">15,000+</div>
+                        <p class="stat-label">Pacientes activos en Lima</p>
+                    </div>
+                    <div>
+                        <div class="stat-number">85%</div>
+                        <p class="stat-label">Mejora en adherencia al tratamiento</p>
+                    </div>
+                    <div>
+                        <div class="stat-number">500+</div>
+                        <p class="stat-label">Médicos verificados en la plataforma</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA SECTION -->
+    <section class="section cta-bg">
+        <div class="cta-blob cta-blob-1"></div>
+        <div class="cta-blob cta-blob-2"></div>
+
+        <div class="container">
+            <div class="cta-content">
+                <h2>Digitaliza tu Atención en Salud</h2>
+                <p>Únete a pacientes en Lima que ya evitan largas esperas y cumplen sus tratamientos con Vitalid. Disponible para mayores de 18 años.</p>
+
+                <div class="cta-cards">
+                    <div class="cta-card">
+                        <div class="cta-card-icon">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                                <line x1="9" y1="9" x2="15" y2="9"></line>
+                                <line x1="9" y1="13" x2="15" y2="13"></line>
+                                <line x1="9" y1="17" x2="13" y2="17"></line>
+                            </svg>
+                        </div>
+                        <h3>App Móvil</h3>
+                        <p>Disponible para iOS y Android en Perú</p>
+                    </div>
+
+                    <div class="cta-card">
+                        <div class="cta-card-icon">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                        </div>
+                        <h3>Datos Protegidos</h3>
+                        <p>Información médica segura y encriptada</p>
+                    </div>
+
+                    <div class="cta-card">
+                        <div class="cta-card-icon">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        <h3>Médicos Verificados</h3>
+                        <p>Profesionales certificados en Lima</p>
+                    </div>
+                </div>
+
+                <div class="cta-buttons">
+                    <a href="./app.html" class="button button-white group">
+                        Descargar Vitalid
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 1.25rem; height: 1.25rem;" class="group-hover:translate-x-1">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </a>
+                    <button class="button button-ghost">Agendar Demo</button>
+                </div>
+
+                <p class="cta-footer">Registro gratuito • Servicio en Lima, Perú • Soporte médico continuo</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <!-- Brand -->
+                <div>
+                    <div class="footer-brand">
+                        <img src="/images/Logo (1).svg" alt="Vitalid Logo" style="width: 2.5rem; height: auto;">
+                        <h3>Vitalid</h3>
+                    </div>
+                    <p style="color: #9ca3af; line-height: 1.6;">
+                        Plataforma de telemedicina que mejora el acceso a servicios de salud en Lima, Perú. Seguimiento de tratamientos y atención médica digital.
+                    </p>
+                </div>
+
+                <!-- Servicios -->
+                <div class="footer-section">
+                    <h4>Servicios</h4>
+                    <ul>
+                        <li><a href="#">Telemedicina</a></li>
+                        <li><a href="#">Seguimiento de Tratamientos</a></li>
+                        <li><a href="#">Salud Mental</a></li>
+                        <li><a href="#">Recordatorios de Medicación</a></li>
+                    </ul>
+                </div>
+
+                <!-- Para Profesionales -->
+                <div class="footer-section">
+                    <h4>Para Profesionales</h4>
+                    <ul>
+                        <li><a href="#">Únete como Médico</a></li>
+                        <li><a href="#">Panel de Control</a></li>
+                        <li><a href="#">Capacitación</a></li>
+                        <li><a href="#">Recursos</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contacto -->
+                <div class="footer-section">
+                    <h4>Contacto</h4>
+                    <ul>
+                        <li class="contact-item">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22 6 12 13 2 6"></polyline>
+                            </svg>
+                            <span>contacto@vitalid.pe</span>
+                        </li>
+                        <li class="contact-item">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                            </svg>
+                            <span>+51 1 700 5000</span>
+                        </li>
+                        <li class="contact-item">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            <span>Lima, Perú</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Bottom Bar -->
+            <div class="footer-bottom">
+                <p>© 2026 Vitalid App. Todos los derechos reservados.</p>
+                <div class="footer-links">
+                    <a href="#">Privacidad</a>
+                    <a href="#">Términos</a>
+                    <a href="#">Cookies</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.0/dist/confetti.browser.min.js"></script>
+    <script>
+        // Confetti on CTA button click
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctaButton = document.querySelector('.button-white');
+            if (ctaButton) {
+                ctaButton.addEventListener('click', function(e) {
+                    confetti({
+                        particleCount: 100,
+                        spread: 70,
+                        origin: { y: 0.6 }
+                    });
+                });
+            }
+
+            // Smooth scroll for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
