@@ -1,2 +1,8 @@
 node_modules
 .env.local
+.vscode/
+.vite/
+.idea/
+.DS_Store
+*.local
+dist/
