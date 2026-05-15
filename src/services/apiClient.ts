@@ -13,16 +13,18 @@ async function parseJson(response: Response) {
   return null;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export async function request<T>(path: string, options: RequestInit = {}) {
-  const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
-  const url = path.startsWith('http') ? path : `${apiBase}${path.startsWith('/') ? path : `/${path}`}`;
+  const normalizedPath = path.startsWith('/api') ? path : `/api${path}`;
+  const url = `${API_BASE_URL}${normalizedPath}`;
   const token = localStorage.getItem('authToken');
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  
-  // Merge custom headers
+
   if (options.headers) {
     Object.assign(headers, options.headers);
   }
