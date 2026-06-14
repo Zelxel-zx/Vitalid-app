@@ -778,7 +778,6 @@ function PatientRow({
           <PatientActions
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
-            onContact={() => onContact()}
           />
         </div>
       </div>

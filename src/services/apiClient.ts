@@ -76,7 +76,7 @@ export async function putJson<T>(path: string, body: unknown) {
  */
 export async function uploadFile<T>(path: string, file: File, fieldName = 'file'): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
-  const token = localStorage.getItem('authToken');
+  const token = getAuthItem('authToken');
 
   const formData = new FormData();
   formData.append(fieldName, file);

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Calendar, MapPin, Video, FileText, Edit2, X } from 'lucide-react';
+import { Calendar, MapPin, Video, FileText, Edit2, X, UserRound } from 'lucide-react';
 import { getAppointmentsForPatient, getAppointmentsForDoctor, rescheduleAppointment, AppointmentResponse } from '../../services/appointmentService';
 import { getDoctorById } from '../../services/doctorService';
 import { getMyTreatments } from '../../services/treatmentService';
+import { getAuthItem } from '../../services/authStorage';
 
 interface EnrichedAppointment extends AppointmentResponse {
   doctorAvatar?: string;
@@ -33,8 +34,8 @@ export function AppointmentHistory({
   const loadAppointments = async () => {
     try {
       setIsLoading(true);
-      const userId = Number(localStorage.getItem('authUserId'));
-      const userType = localStorage.getItem('authUserType');
+      const userId = Number(getAuthItem('authUserId'));
+      const userType = getAuthItem('authUserType');
       if (!userId) return;
 
       let data: EnrichedAppointment[] = [];
@@ -277,17 +278,22 @@ export function AppointmentHistory({
                 className="bg-white rounded-xl border border-primary p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start gap-4">
-                  {localStorage.getItem('authUserType') !== 'doctor' && (
-                    <img
-                      src={appointment.doctorAvatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
-                      alt={appointment.doctorName}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  )}
+                  {getAuthItem('authUserType') !== 'doctor' &&
+                    (appointment.doctorAvatar ? (
+                      <img
+                        src={appointment.doctorAvatar}
+                        alt={appointment.doctorName}
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <UserRound size={30} />
+                      </div>
+                    ))}
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        {localStorage.getItem('authUserType') === 'doctor' ? (
+                        {getAuthItem('authUserType') === 'doctor' ? (
                            <h3 className="font-semibold text-gray-900">Paciente: {appointment.patientName}</h3>
                         ) : (
                            <>
@@ -296,7 +302,7 @@ export function AppointmentHistory({
                            </>
                         )}
                       </div>
-                      {localStorage.getItem('authUserType') !== 'doctor' &&
+                      {getAuthItem('authUserType') !== 'doctor' &&
                         !appointment.treatmentFollowUp && (
                         <button
                           onClick={() => handleReschedule(appointment.id)}
@@ -394,17 +400,22 @@ export function AppointmentHistory({
                   className="bg-white rounded-xl border border-primary p-5"
                 >
                 <div className="flex items-start gap-4">
-                  {localStorage.getItem('authUserType') !== 'doctor' && (
-                    <img
-                      src={appointment.doctorAvatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
-                      alt={appointment.doctorName}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  )}
+                  {getAuthItem('authUserType') !== 'doctor' &&
+                    (appointment.doctorAvatar ? (
+                      <img
+                        src={appointment.doctorAvatar}
+                        alt={appointment.doctorName}
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <UserRound size={30} />
+                      </div>
+                    ))}
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        {localStorage.getItem('authUserType') === 'doctor' ? (
+                        {getAuthItem('authUserType') === 'doctor' ? (
                            <h3 className="font-semibold text-gray-900">Paciente: {appointment.patientName}</h3>
                         ) : (
                            <>

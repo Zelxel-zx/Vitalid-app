@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Home, MessageSquare, Activity, User, Menu, X, ClipboardList, Calendar, Users, MessageCircle } from 'lucide-react';
-import { LoginScreen, DoctorCard, ChatInterface, ProgressChart, TreatmentsView, AppointmentBooking, AppointmentHistory, DoctorDashboard, PatientRegistrationForm, DoctorRegistrationForm } from '../components/presentation';
+import { Home, MessageSquare, Activity, User, UserRound, Menu, X, ClipboardList, Calendar, Users, MessageCircle } from 'lucide-react';
+import { LoginScreen, DoctorCard, ChatInterface, ProgressChart, TreatmentsView, AppointmentBooking, AppointmentHistory, DoctorDashboard, DoctorPatientsView, PatientRegistrationForm, DoctorRegistrationForm } from '../components/presentation';
 import { ProfileView } from '../components/presentation/ProfileView';
 import { IncomingCallModal } from '../components/presentation/IncomingCallModal';
 import { JitsiCallModal } from '../components/presentation/JitsiCallModal';
@@ -14,10 +14,14 @@ import { useHealthData } from '../hooks/useHealthData';
 import { usePatientDashboard } from '../hooks/usePatientDashboard';
 import { usePatientDoctors } from '../hooks/usePatientDoctors';
 import { View } from '../types';
-import { ConversationSummary, getChatConversations, DoctorSummary } from '../services/doctorService';
+import { DoctorSummary } from '../services/doctorService';
 import { chatService } from '../services/chatService';
 import { ChatMessage } from '../types';
 import { getJson } from '../services/apiClient';
+import { getAuthItem } from '../services/authStorage';
+import { getProfile, PROFILE_UPDATED } from '../services/profileService';
+import { getAllPatients, PatientResponse } from '../services/patientService';
+import { getMyTreatments } from '../services/treatmentService';
 
 export default function App() {
   const {
@@ -55,10 +59,10 @@ export default function App() {
 
   return (
     <MainApp
-      key={localStorage.getItem('authUserId')}
+      key={getAuthItem('authUserId')}
       userType={userType}
       userName={userName}
-      userId={Number(localStorage.getItem('authUserId')) || null}
+      userId={Number(getAuthItem('authUserId')) || null}
       handleLogout={handleLogout}
     />
   );
@@ -86,11 +90,33 @@ function MainApp({
     userType === 'patient' ? userId : null,
   );
   const patientDoctors = doctors.filter((doctor) => patientDoctorIds.has(doctor.id));
-  const firstName = userName?.trim().split(/\s+/)[0] || 'Paciente';
+  const [displayName, setDisplayName] = useState(userName || '');
+  const [profileAvatar, setProfileAvatar] = useState('');
+  const firstName = displayName.trim().split(/\s+/)[0] || 'Paciente';
   const [appointmentPrefill, setAppointmentPrefill] = useState<{
     doctorId: number;
     date: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    getProfile(userId)
+      .then((profile) => {
+        setDisplayName(profile.name || '');
+        setProfileAvatar(profile.avatar || '');
+      })
+      .catch((error) => console.error('Error loading header profile:', error));
+
+    const handleProfileUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ name?: string; avatar?: string }>).detail;
+      if (detail?.name !== undefined) setDisplayName(detail.name);
+      if (detail?.avatar !== undefined) setProfileAvatar(detail.avatar);
+    };
+
+    window.addEventListener(PROFILE_UPDATED, handleProfileUpdated);
+    return () => window.removeEventListener(PROFILE_UPDATED, handleProfileUpdated);
+  }, [userId]);
 
   // Unread message badge
   const [unreadCount, setUnreadCount] = useState(0);
@@ -109,7 +135,7 @@ function MainApp({
   // Global call state — incoming call accepted anywhere in the app
   const [globalCallRoom, setGlobalCallRoom] = useState<string | null>(null);
   const [globalCallId, setGlobalCallId] = useState<number | null>(null);
-  const myName = userName || 'Usuario';
+  const myName = displayName || 'Usuario';
 
   const handleIncomingCallAccepted = (roomName: string, callId: number) => {
     setGlobalCallRoom(roomName);
@@ -272,7 +298,22 @@ function MainApp({
         {currentView === 'home' && userType === 'patient' && (
           <div className="space-y-8">
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Bienvenido, {firstName}</h2>
+              <div className="mb-6 flex items-center gap-4">
+                {profileAvatar ? (
+                  <img
+                    src={profileAvatar}
+                    alt={displayName}
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <UserRound size={30} />
+                  </div>
+                )}
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Bienvenido, {firstName}
+                </h2>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-primary text-white rounded-xl p-6">
@@ -344,7 +385,7 @@ function MainApp({
           </div>
         )}
 
-        {currentView === 'treatments' && (
+        {currentView === 'treatments' && userType === 'patient' && (
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-semibold text-gray-900 mb-2">Mis Tratamientos</h2>
@@ -390,10 +431,10 @@ function MainApp({
         {currentView === 'patients' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Monitoreo de Pacientes</h2>
-              <p className="text-gray-600">Identifica pacientes en riesgo e interviene preventivamente</p>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Mis Pacientes</h2>
+              <p className="text-gray-600">Consulta su información clínica, tratamientos y seguimiento</p>
             </div>
-            <DoctorDashboard />
+            <DoctorPatientsView />
           </div>
         )}
 
@@ -467,8 +508,8 @@ function DoctorMessagesView({
   doctors: DoctorSummary[];
   userId: number | null;
 }) {
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [selectedConv, setSelectedConv] = useState<ConversationSummary | null>(null);
+  const [patients, setPatients] = useState<PatientResponse[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<PatientResponse | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -477,32 +518,35 @@ function DoctorMessagesView({
 
   useEffect(() => {
     if (!myDoctorId) return;
-    getChatConversations(myDoctorId)
-      .then(setConversations)
+    Promise.all([getMyTreatments(), getAllPatients()])
+      .then(([treatments, allPatients]) => {
+        const assignedIds = new Set(treatments.map((treatment) => treatment.patientId));
+        setPatients(allPatients.filter((patient) => assignedIds.has(patient.id)));
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [myDoctorId]);
 
   useEffect(() => {
-    if (!myDoctorId || !selectedConv) return;
+    if (!myDoctorId || !selectedPatient) return;
     chatService
-      .getMessagesForDoctor(myDoctorId, selectedConv.patientUserId)
+      .getMessagesForDoctor(myDoctorId, selectedPatient.userId)
       .then(setChatMessages)
       .catch(console.error);
-  }, [myDoctorId, selectedConv]);
+  }, [myDoctorId, selectedPatient]);
 
-  if (selectedConv && myDoctorId) {
+  if (selectedPatient && myDoctorId) {
     return (
       <div className="h-[calc(100vh-12rem)]">
         <ChatInterface
           doctorId={myDoctorId}
-          doctorName={selectedConv.patientName}
-          doctorAvatar=""
+          doctorName={selectedPatient.name}
+          doctorAvatar={selectedPatient.avatar || ''}
           messages={chatMessages}
-          onBack={() => setSelectedConv(null)}
+          onBack={() => setSelectedPatient(null)}
           onMessagesUpdate={setChatMessages}
           isDoctor
-          chatPartnerUserId={selectedConv.patientUserId}
+          chatPartnerUserId={selectedPatient.userId}
         />
       </div>
     );
@@ -517,7 +561,7 @@ function DoctorMessagesView({
 
       {loading && <p className="text-gray-500 text-sm">Cargando conversaciones...</p>}
 
-      {!loading && conversations.length === 0 && (
+      {!loading && patients.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-500">
           <MessageCircle size={36} className="mx-auto mb-3 opacity-40" />
           <p className="font-medium">Sin mensajes aún</p>
@@ -526,23 +570,29 @@ function DoctorMessagesView({
       )}
 
       <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white overflow-hidden">
-        {conversations.map((conv) => (
+        {patients.map((patient) => (
           <button
-            key={conv.patientUserId}
-            onClick={() => setSelectedConv(conv)}
+            key={patient.id}
+            onClick={() => setSelectedPatient(patient)}
             className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
           >
-            <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="text-primary font-bold text-lg">
-                {conv.patientName?.charAt(0).toUpperCase()}
-              </span>
-            </div>
+            {patient.avatar ? (
+              <img
+                src={patient.avatar}
+                alt={patient.name}
+                className="h-11 w-11 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <UserRound size={22} className="text-primary" />
+              </div>
+            )}
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-gray-900">{conv.patientName}</p>
-              <p className="text-sm text-gray-500 truncate">{conv.lastMessage}</p>
+              <p className="font-medium text-gray-900">{patient.name}</p>
+              <p className="text-sm text-gray-500 truncate">{patient.email}</p>
             </div>
             <span className="text-xs text-gray-400 shrink-0">
-              {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleDateString('es-ES') : ''}
+              {patient.bloodType || ''}
             </span>
           </button>
         ))}

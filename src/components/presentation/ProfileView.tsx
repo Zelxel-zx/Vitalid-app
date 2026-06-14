@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getProfile, updateProfile, uploadAvatar, ProfileResponse, splitAllergies } from '../../services/profileService';
 import { downloadPatientReport } from '../../services/reportService';
 import { User, FileText, Camera } from 'lucide-react';
+import { getAuthItem, setAuthItem } from '../../services/authStorage';
 
 export function ProfileView() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
@@ -11,6 +12,7 @@ export function ProfileView() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [bloodType, setBloodType] = useState('');
@@ -23,9 +25,10 @@ export function ProfileView() {
   const loadProfile = async () => {
     try {
       setIsLoading(true);
-      const userId = Number(localStorage.getItem('authUserId'));
+      const userId = Number(getAuthItem('authUserId'));
       const data = await getProfile(userId);
       setProfile(data);
+      setName(data.name || '');
       setPhone(data.phone || '');
       setBirthDate(data.dateOfBirth || '');
       setBloodType(data.bloodType || '');
@@ -43,10 +46,10 @@ export function ProfileView() {
     if (!profile) return;
     try {
       setIsLoading(true);
-      const userId = Number(localStorage.getItem('authUserId'));
+      const userId = Number(getAuthItem('authUserId'));
       const allergiesArray = splitAllergies(allergiesStr);
       const updated = await updateProfile({
-        name: profile.name,
+        name: name.trim(),
         phone,
         dateOfBirth: birthDate,
         bloodType,
@@ -55,6 +58,7 @@ export function ProfileView() {
         experienceYears
       }, userId);
       setProfile(updated);
+      setAuthItem('authUserName', updated.name);
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -71,7 +75,7 @@ export function ProfileView() {
 
     setIsUploadingAvatar(true);
     try {
-      const userId = Number(localStorage.getItem('authUserId'));
+      const userId = Number(getAuthItem('authUserId'));
       const dataUri = await uploadAvatar(userId, file);
       setProfile({ ...profile, avatar: dataUri });
     } catch (error) {
@@ -99,14 +103,14 @@ export function ProfileView() {
         <div className="flex items-center gap-6 mb-6">
           <div className="relative">
             <div
-              className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden cursor-pointer group"
+              className="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center overflow-hidden cursor-pointer group"
               onClick={() => avatarInputRef.current?.click()}
               title="Haz clic para cambiar tu foto"
             >
               {profile.avatar ? (
                 <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
               ) : (
-                <User size={40} className="text-gray-400" />
+                <User size={40} />
               )}
               {/* Overlay on hover */}
               <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -184,7 +188,7 @@ export function ProfileView() {
                 <button
                   onClick={async () => {
                     try {
-                      await downloadPatientReport(Number(localStorage.getItem('authUserId')));
+                      await downloadPatientReport(Number(getAuthItem('authUserId')));
                     } catch (error) {
                       console.error('Error downloading report:', error);
                       alert('Error al descargar el historial médico');
@@ -206,6 +210,15 @@ export function ProfileView() {
           </div>
         ) : (
           <div className="space-y-4">
+            <div>
+               <label className="text-sm text-gray-600">Nombre</label>
+               <input
+                 type="text"
+                 value={name}
+                 onChange={(event) => setName(event.target.value)}
+                 className="w-full p-2 border rounded mt-1"
+               />
+            </div>
             <div>
                <label className="text-sm text-gray-600">Teléfono</label>
                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 border rounded mt-1" />

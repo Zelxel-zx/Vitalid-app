@@ -28,13 +28,6 @@ export interface DoctorSummary {
   verified: boolean;
 }
 
-export interface ConversationSummary {
-  patientUserId: number;
-  patientName: string;
-  lastMessage: string;
-  lastMessageAt: string;
-}
-
 export function formatDoctorName(name: string): string {
   const normalized = name?.trim() || '';
   return /^(dr|dra)\.?\s/i.test(normalized) ? normalized : `Dr. ${normalized}`;
@@ -50,14 +43,6 @@ export async function getDoctorById(id: number): Promise<DoctorSummary> {
 
 export async function getDoctorsBySpecialty(specialty: string): Promise<DoctorSummary[]> {
   return getJson<DoctorSummary[]>(`/doctors/specialty/${specialty}`);
-}
-
-/**
- * Fetches distinct patients who have exchanged messages with a doctor.
- * Used by the doctor's inbox view.
- */
-export async function getChatConversations(doctorId: number): Promise<ConversationSummary[]> {
-  return getJson<ConversationSummary[]>(`/chat/doctor/${doctorId}/conversations`);
 }
 
 export interface DoctorAvailability {

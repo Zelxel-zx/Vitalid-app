@@ -1,5 +1,6 @@
 import { getJson, postJson, uploadFile } from './apiClient';
 import { ChatMessage } from '../types';
+import { getAuthItem } from './authStorage';
 
 interface ChatMessageResponse {
   id: number;
@@ -29,9 +30,9 @@ export const chatService = {
     doctorId: number,
     patientUserId?: number | null,
   ): Promise<ChatMessage[]> => {
-    const myUserId = localStorage.getItem('authUserId');
-    const myName = localStorage.getItem('authUserName');
-    const myType = localStorage.getItem('authUserType');
+    const myUserId = getAuthItem('authUserId');
+    const myName = getAuthItem('authUserName');
+    const myType = getAuthItem('authUserType');
 
     // For patients: pass their own userId so the API returns only this patient's thread
     // For doctors:  pass the selected patient's userId (patientUserId param)
@@ -66,9 +67,9 @@ export const chatService = {
    * - Doctor → Patient: doctorId = doctor's own entity ID, receiverUserId = patient's user ID
    */
   sendMessage: async (doctorId: number, content: string, receiverUserId?: number | null): Promise<ChatMessage> => {
-    const senderId = Number(localStorage.getItem('authUserId'));
-    const myType = localStorage.getItem('authUserType');
-    const myName = localStorage.getItem('authUserName') || '';
+    const senderId = Number(getAuthItem('authUserId'));
+    const myType = getAuthItem('authUserType');
+    const myName = getAuthItem('authUserName') || '';
     const response: ChatMessageResponse = await postJson('/chat/send', {
       doctorId,
       senderId,

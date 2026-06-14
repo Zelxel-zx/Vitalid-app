@@ -1,5 +1,7 @@
 import { getJson, putJson, uploadFile } from './apiClient';
 
+export const PROFILE_UPDATED = 'vitalid:profile-updated';
+
 export interface ProfileResponse {
   id: number;
   email: string;
@@ -34,7 +36,9 @@ export async function getProfile(userId?: number): Promise<ProfileResponse> {
 export async function updateProfile(request: ProfileUpdateRequest, userId?: number): Promise<ProfileResponse> {
   const url = userId ? `/profile?userId=${userId}` : '/profile';
   const profile = await putJson<ProfileResponse>(url, request);
-  return normalizeProfile(profile);
+  const normalized = normalizeProfile(profile);
+  notifyProfileUpdated(normalized.name, normalized.avatar);
+  return normalized;
 }
 
 /**
@@ -44,6 +48,7 @@ export async function updateProfile(request: ProfileUpdateRequest, userId?: numb
 export async function uploadAvatar(userId: number, file: File): Promise<string> {
   const url = userId ? `/profile/avatar?userId=${userId}` : '/profile/avatar';
   const response = await uploadFile<{ url: string }>(url, file);
+  notifyProfileUpdated(undefined, response.url);
   return response.url;
 }
 
@@ -71,4 +76,12 @@ function normalizeProfile(profile: ProfileResponse): ProfileResponse {
     ...profile,
     allergies: splitAllergies(profile.allergies),
   };
+}
+
+function notifyProfileUpdated(name?: string, avatar?: string) {
+  window.dispatchEvent(
+    new CustomEvent(PROFILE_UPDATED, {
+      detail: { name, avatar },
+    }),
+  );
 }

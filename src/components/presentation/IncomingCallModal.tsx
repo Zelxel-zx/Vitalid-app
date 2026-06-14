@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 import { getJson, putJson } from '../../services/apiClient';
+import { getAuthItem } from '../../services/authStorage';
 
 interface IncomingCall {
   callId: number;
@@ -25,7 +26,7 @@ export function IncomingCallModal({ onAccepted }: IncomingCallModalProps) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const userId = localStorage.getItem('authUserId');
+  const userId = getAuthItem('authUserId');
 
   useEffect(() => {
     if (!userId) return;

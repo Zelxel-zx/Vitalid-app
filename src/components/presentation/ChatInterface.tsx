@@ -3,6 +3,7 @@ import { Send, Paperclip, Image as ImageIcon, Phone, Video, MoreVertical, ArrowL
 import { chatService } from '../../services/chatService';
 import { JitsiCallModal } from './JitsiCallModal';
 import { postJson, putJson } from '../../services/apiClient';
+import { getAuthItem } from '../../services/authStorage';
 
 interface Message {
   id: string;
@@ -48,8 +49,8 @@ export function ChatInterface({ doctorId, doctorName, doctorAvatar, messages: in
   const [isCalling, setIsCalling] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const myUserId = localStorage.getItem('authUserId');
-  const myName = localStorage.getItem('authUserName') || 'Usuario';
+  const myUserId = getAuthItem('authUserId');
+  const myName = getAuthItem('authUserName') || 'Usuario';
 
   useEffect(() => {
     setMessages(initialMessages);
