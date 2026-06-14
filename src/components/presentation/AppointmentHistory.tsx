@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Calendar, MapPin, Video, FileText, Edit2 } from 'lucide-react';
-import { getAppointmentsForPatient, getAppointmentsForDoctor, AppointmentResponse } from '../../services/appointmentService';
+import { Calendar, MapPin, Video, FileText, Edit2, X } from 'lucide-react';
+import { getAppointmentsForPatient, getAppointmentsForDoctor, rescheduleAppointment, AppointmentResponse } from '../../services/appointmentService';
 import { getDoctorById } from '../../services/doctorService';
 import { getMyTreatments } from '../../services/treatmentService';
 
@@ -20,6 +20,11 @@ export function AppointmentHistory({
 }: AppointmentHistoryProps) {
   const [appointments, setAppointments] = useState<EnrichedAppointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Reschedule modal state
+  const [rescheduleId, setRescheduleId] = useState<number | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [isRescheduling, setIsRescheduling] = useState(false);
 
   useEffect(() => {
     loadAppointments();
@@ -174,8 +179,32 @@ export function AppointmentHistory({
   };
 
   const handleReschedule = (appointmentId: number) => {
-    console.log('Reprogramando cita:', appointmentId);
-    alert('Funcionalidad de reprogramación estará disponible pronto');
+    setRescheduleId(appointmentId);
+    setRescheduleDate('');
+    setRescheduleTime('');
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!rescheduleId || !rescheduleDate || !rescheduleTime) {
+      alert('Por favor selecciona fecha y hora');
+      return;
+    }
+    setIsRescheduling(true);
+    try {
+      await rescheduleAppointment(rescheduleId, { date: rescheduleDate, time: rescheduleTime });
+      setRescheduleId(null);
+      await loadAppointments();
+    } catch (err) {
+      console.error('Error al reprogramar:', err);
+      alert('Error al reprogramar la cita. Inténtalo de nuevo.');
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
+
+  const handleJoinVideoCall = (appointment: EnrichedAppointment) => {
+    const roomName = `vitalid-appt-${appointment.id}`;
+    window.open(`https://meet.jit.si/${roomName}`, '_blank');
   };
 
   if (isLoading) {
@@ -184,6 +213,55 @@ export function AppointmentHistory({
 
   return (
     <div className="space-y-8">
+      {/* Reschedule modal */}
+      {rescheduleId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl p-6 shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Cambiar fecha de cita</h3>
+              <button onClick={() => setRescheduleId(null)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-600">Nueva fecha</label>
+                <input
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={e => setRescheduleDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full p-2 border border-gray-300 rounded-lg mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600">Nueva hora</label>
+                <input
+                  type="time"
+                  value={rescheduleTime}
+                  onChange={e => setRescheduleTime(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg mt-1"
+                />
+              </div>
+              <div className="flex gap-3 mt-2">
+                <button
+                  onClick={() => setRescheduleId(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleRescheduleSubmit}
+                  disabled={isRescheduling}
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+                >
+                  {isRescheduling ? 'Guardando...' : 'Confirmar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Próximas Citas</h2>
         {upcomingAppointments.length === 0 ? (
@@ -286,7 +364,11 @@ export function AppointmentHistory({
                     )}
 
                     {isVideoCall(appointment) && (
-                      <button className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors text-sm">
+                      <button
+                        onClick={() => handleJoinVideoCall(appointment)}
+                        className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors text-sm flex items-center gap-2"
+                      >
+                        <Video size={16} />
                         Unirse a la videollamada
                       </button>
                     )}

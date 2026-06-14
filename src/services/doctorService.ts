@@ -17,6 +17,7 @@ interface ApiResponse<T> {
 
 export interface DoctorSummary {
   id: number;
+  userId: number;
   name: string;
   specialty: string;
   avatar: string;
@@ -25,6 +26,13 @@ export interface DoctorSummary {
   unreadMessages: number;
   experienceYears: number;
   verified: boolean;
+}
+
+export interface ConversationSummary {
+  patientUserId: number;
+  patientName: string;
+  lastMessage: string;
+  lastMessageAt: string;
 }
 
 export function formatDoctorName(name: string): string {
@@ -42,6 +50,14 @@ export async function getDoctorById(id: number): Promise<DoctorSummary> {
 
 export async function getDoctorsBySpecialty(specialty: string): Promise<DoctorSummary[]> {
   return getJson<DoctorSummary[]>(`/doctors/specialty/${specialty}`);
+}
+
+/**
+ * Fetches distinct patients who have exchanged messages with a doctor.
+ * Used by the doctor's inbox view.
+ */
+export async function getChatConversations(doctorId: number): Promise<ConversationSummary[]> {
+  return getJson<ConversationSummary[]>(`/chat/doctor/${doctorId}/conversations`);
 }
 
 export interface DoctorAvailability {

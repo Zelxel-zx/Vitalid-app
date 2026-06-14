@@ -1,49 +1,95 @@
+import { getJson, postJson, uploadFile } from './apiClient';
 import { ChatMessage } from '../types';
 
+interface ChatMessageResponse {
+  id: number;
+  sender: string;
+  content: string;
+  timestamp: string;
+}
+
+function toTimestamp(iso: string | null): string {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return iso;
+  }
+}
+
 export const chatService = {
-  getMessagesForDoctor: (doctorId: number): ChatMessage[] => {
-    // Mock data - en producción vendría de una API
-    return [
-      {
-        id: '1',
-        sender: 'doctor',
-        content: '¡Hola! ¿Cómo te sientes hoy? ¿Has estado tomando tu medicación según lo prescrito?',
-        timestamp: '10:30 AM'
-      },
-      {
-        id: '2',
-        sender: 'patient',
-        content: '¡Hola Dra. Johnson! Sí, la he estado tomando cada mañana. Me siento mucho mejor.',
-        timestamp: '10:32 AM'
-      },
-      {
-        id: '3',
-        sender: 'doctor',
-        content: '¡Qué bueno escuchar eso! Sigue monitoreando tu presión arterial y avísame si notas algún cambio.',
-        timestamp: '10:35 AM'
-      },
-      {
-        id: '4',
-        sender: 'patient',
-        content: 'Lo haré. ¿Debería programar una cita de seguimiento?',
-        timestamp: '10:37 AM'
-      },
-      {
-        id: '5',
-        sender: 'doctor',
-        content: 'Sí, programemos una para el próximo mes para revisar tu progreso.',
-        timestamp: '10:40 AM'
-      }
-    ];
+  /**
+   * Fetch messages for a conversation between the current user and a specific doctor.
+   *
+   * - Called by PATIENTS: doctorId = doctor entity ID, userId = patient's user ID
+   * - Called by DOCTORS: doctorId = their own doctor entity ID, patientUserId = the other user's ID
+   *   In this case pass patientUserId explicitly so the API filters the conversation correctly.
+   */
+  getMessagesForDoctor: async (
+    doctorId: number,
+    patientUserId?: number | null,
+  ): Promise<ChatMessage[]> => {
+    const myUserId = localStorage.getItem('authUserId');
+    const myName = localStorage.getItem('authUserName');
+    const myType = localStorage.getItem('authUserType');
+
+    // For patients: pass their own userId so the API returns only this patient's thread
+    // For doctors:  pass the selected patient's userId (patientUserId param)
+    //               without it the API returns ALL messages which is also fine for now
+    const filterUserId = myType === 'doctor' ? patientUserId : myUserId;
+    const url = filterUserId
+      ? `/chat/doctor/${doctorId}?userId=${filterUserId}`
+      : `/chat/doctor/${doctorId}`;
+
+    const messages: ChatMessageResponse[] = await getJson(url);
+
+    return (messages || []).map((msg) => {
+      // For patients: "patient" = my name, "doctor" = anyone else
+      // For doctors: "doctor" = doctor's own name, "patient" = anyone else
+      const isMine =
+        myType === 'doctor'
+          ? msg.sender === myName
+          : msg.sender === myName;
+
+      return {
+        id: String(msg.id),
+        sender: isMine ? (myType === 'doctor' ? 'doctor' : 'patient') : (myType === 'doctor' ? 'patient' : 'doctor'),
+        content: msg.content,
+        timestamp: toTimestamp(msg.timestamp),
+      };
+    });
   },
 
-  sendMessage: async (doctorId: number, content: string): Promise<ChatMessage> => {
-    // Mock API call
-    return {
-      id: Date.now().toString(),
-      sender: 'patient',
+  /**
+   * Send a text message.
+   * - Patient → Doctor: doctorId = doctor entity ID, receiverUserId = undefined
+   * - Doctor → Patient: doctorId = doctor's own entity ID, receiverUserId = patient's user ID
+   */
+  sendMessage: async (doctorId: number, content: string, receiverUserId?: number | null): Promise<ChatMessage> => {
+    const senderId = Number(localStorage.getItem('authUserId'));
+    const myType = localStorage.getItem('authUserType');
+    const myName = localStorage.getItem('authUserName') || '';
+    const response: ChatMessageResponse = await postJson('/chat/send', {
+      doctorId,
+      senderId,
       content,
-      timestamp: new Date().toLocaleTimeString()
+      receiverUserId: receiverUserId ?? null,
+    });
+    const isMine = response.sender === myName || response.sender == null;
+    return {
+      id: String(response.id),
+      sender: isMine ? (myType === 'doctor' ? 'doctor' : 'patient') : (myType === 'doctor' ? 'patient' : 'doctor'),
+      content: response.content,
+      timestamp: toTimestamp(response.timestamp),
     };
-  }
+  },
+
+  /**
+   * Upload a file (image/PDF) and return a data URI to embed in a message.
+   * POST /profile/chat-upload
+   */
+  uploadFile: async (file: File): Promise<string> => {
+    const response = await uploadFile<{ url: string }>('/profile/chat-upload', file);
+    return response.url;
+  },
 };

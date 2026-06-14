@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Clock,
   FileText,
+  Mail,
   MessageSquare,
   Pill,
   Search,
@@ -11,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { getAllPatients, PatientResponse } from '../../services/patientService';
+import { sendEmail } from '../../services/notificationService';
 import {
   addMedicationToTreatment,
   createTreatment,
@@ -86,6 +88,11 @@ export function DoctorDashboard() {
     useState<CreateMedicationInput>(emptyMedication);
   const [scheduledTimesText, setScheduledTimesText] = useState('08:00');
   const [isSaving, setIsSaving] = useState(false);
+  // Contact patient modal
+  const [contactPatient, setContactPatient] = useState<DoctorPatient | null>(null);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const loadPatients = async () => {
     try {
@@ -286,6 +293,11 @@ export function DoctorDashboard() {
                 data={patient}
                 onPrescribe={() => openPrescriptionPanel(patient)}
                 onShowEffects={() => setEffectsPatient(patient)}
+                onContact={() => {
+                  setContactPatient(patient);
+                  setEmailSubject(`Seguimiento - ${patient.patient.name}`);
+                  setEmailBody('');
+                }}
               />
             ))}
           </div>
@@ -354,6 +366,77 @@ export function DoctorDashboard() {
           patient={effectsPatient}
           onClose={() => setEffectsPatient(null)}
         />
+      )}
+
+      {/* Contact patient email modal */}
+      {contactPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl p-6 shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Contactar paciente</h3>
+                <p className="text-sm text-gray-500">{contactPatient.patient.email}</p>
+              </div>
+              <button onClick={() => setContactPatient(null)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-600">Asunto</label>
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={e => setEmailSubject(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg mt-1"
+                  placeholder="Asunto del correo"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600">Mensaje</label>
+                <textarea
+                  value={emailBody}
+                  onChange={e => setEmailBody(e.target.value)}
+                  rows={5}
+                  className="w-full p-2 border border-gray-300 rounded-lg mt-1 resize-none"
+                  placeholder="Escribe tu mensaje al paciente..."
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setContactPatient(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!emailSubject.trim() || !emailBody.trim()) {
+                      alert('Por favor completa el asunto y el mensaje');
+                      return;
+                    }
+                    setIsSendingEmail(true);
+                    try {
+                      await sendEmail(contactPatient.patient.email, emailSubject, emailBody);
+                      setContactPatient(null);
+                      alert('Correo enviado exitosamente. Revisa MailHog en http://localhost:8025');
+                    } catch (err) {
+                      console.error('Error sending email:', err);
+                      alert('Error al enviar el correo. Verifica que el servidor está activo.');
+                    } finally {
+                      setIsSendingEmail(false);
+                    }
+                  }}
+                  disabled={isSendingEmail}
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Mail size={16} />
+                  {isSendingEmail ? 'Enviando...' : 'Enviar correo'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -468,10 +551,12 @@ function CriticalPatientCard({
   data,
   onPrescribe,
   onShowEffects,
+  onContact,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onContact?: () => void;
 }) {
   return (
     <div className="rounded-xl border-2 border-red-200 bg-white p-5">
@@ -516,6 +601,7 @@ function CriticalPatientCard({
             critical
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
+            onContact={onContact}
           />
         </div>
       </div>
@@ -560,6 +646,7 @@ function PatientRow({
           <PatientActions
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
+            onContact={() => onContact()}
           />
         </div>
       </div>
@@ -571,19 +658,20 @@ function PatientActions({
   critical = false,
   onPrescribe,
   onShowEffects,
+  onContact,
 }: {
   critical?: boolean;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onContact?: () => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       {critical && (
         <button
           type="button"
-          disabled
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white opacity-50"
-          title="Disponible próximamente"
+          onClick={onContact}
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors"
         >
           <MessageSquare size={17} />
           Contactar

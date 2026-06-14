@@ -67,3 +67,34 @@ export async function putJson<T>(path: string, body: unknown) {
     body: JSON.stringify(body),
   });
 }
+
+/**
+ * Upload a file as multipart/form-data.
+ * Do NOT set Content-Type manually — fetch sets it with the proper boundary.
+ */
+export async function uploadFile<T>(path: string, file: File, fieldName = 'file'): Promise<T> {
+  const url = `${API_BASE_URL}${path}`;
+  const token = localStorage.getItem('authToken');
+
+  const formData = new FormData();
+  formData.append(fieldName, file);
+
+  const headers: Record<string, string> = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  const payload = await parseJson(response);
+
+  if (!response.ok) {
+    const message = payload?.message || response.statusText || 'Upload failed';
+    throw new Error(message);
+  }
+
+  return payload as T;
+}

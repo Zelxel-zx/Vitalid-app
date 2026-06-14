@@ -4,7 +4,7 @@ import { chatService } from '../services/chatService';
 
 export function useChat(doctorId: number | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!doctorId) {
@@ -12,25 +12,18 @@ export function useChat(doctorId: number | null) {
       return;
     }
 
-    try {
-      const data = chatService.getMessagesForDoctor(doctorId);
-      setMessages(data);
-      setLoading(false);
-    } catch (err) {
-      console.error('Error loading messages:', err);
-      setLoading(false);
-    }
+    setLoading(true);
+    chatService.getMessagesForDoctor(doctorId)
+      .then((data) => {
+        setMessages(data);
+      })
+      .catch((err) => {
+        console.error('Error loading messages:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [doctorId]);
 
-  const sendMessage = async (content: string) => {
-    if (!doctorId) return;
-    try {
-      const message = await chatService.sendMessage(doctorId, content);
-      setMessages(prev => [...prev, message]);
-    } catch (err) {
-      console.error('Error sending message:', err);
-    }
-  };
-
-  return { messages, loading, sendMessage };
+  return { messages, loading, setMessages };
 }
