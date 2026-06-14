@@ -1,11 +1,14 @@
 import { getJson, putJson } from './apiClient';
 
+export const PROFILE_UPDATED = 'vitalid:profile-updated';
+
 export interface ProfileResponse {
   id: number;
   email: string;
   name: string;
   phone: string;
   type: string;
+  avatar: string;
   dateOfBirth: string;
   bloodType: string;
   allergies: string[];
@@ -17,6 +20,7 @@ export interface ProfileResponse {
 export interface ProfileUpdateRequest {
   name: string;
   phone: string;
+  avatar: string;
   dateOfBirth: string;
   bloodType: string;
   allergies: string[];
@@ -33,7 +37,16 @@ export async function getProfile(userId?: number): Promise<ProfileResponse> {
 export async function updateProfile(request: ProfileUpdateRequest, userId?: number): Promise<ProfileResponse> {
   const url = userId ? `/profile?userId=${userId}` : '/profile';
   const profile = await putJson<ProfileResponse>(url, request);
-  return normalizeProfile(profile);
+  const normalized = normalizeProfile(profile);
+  window.dispatchEvent(
+    new CustomEvent(PROFILE_UPDATED, {
+      detail: {
+        name: normalized.name,
+        avatar: normalized.avatar,
+      },
+    }),
+  );
+  return normalized;
 }
 
 export function splitAllergies(value: string | string[] | null | undefined): string[] {

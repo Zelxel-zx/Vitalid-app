@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { ChangeEvent, useEffect, useState } from 'react';
 import {
+  Camera,
   CalendarDays,
   Droplets,
   FileText,
   HeartPulse,
   MapPin,
+  UserRound,
 } from 'lucide-react';
 import logo from '../../images/Logo (1).svg';
 import {
@@ -22,6 +24,7 @@ type FormErrors = Partial<Record<keyof CreatePatientInput, string>>;
 const initialForm: CreatePatientInput = {
   dateOfBirth: '',
   bloodType: '',
+  avatar: '',
   address: '',
   city: '',
   state: '',
@@ -38,12 +41,38 @@ export function PatientRegistrationForm({
 }: PatientRegistrationFormProps) {
   const [form, setForm] = useState<CreatePatientInput>(initialForm);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoName, setPhotoName] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+    };
+  }, [photoPreview]);
 
   const updateField = (field: keyof CreatePatientInput, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const handlePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setSubmitError('Selecciona un archivo de imagen válido.');
+      return;
+    }
+
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(URL.createObjectURL(file));
+    setPhotoName(file.name);
+    setSubmitError(null);
+
+    // La API guarda una URL; el archivo se enviará al implementar el servicio de subida.
+    updateField('avatar', '');
   };
 
   const validate = () => {
@@ -138,6 +167,44 @@ export function PatientRegistrationForm({
                 {submitError}
               </div>
             )}
+
+            <section>
+              <div className="mb-5 flex items-center gap-2">
+                <Camera className="text-primary" size={21} />
+                <h2 className="text-lg font-semibold text-gray-900">Foto de perfil</h2>
+              </div>
+              <div className="flex flex-col items-center gap-5 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 sm:flex-row">
+                <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-primary">
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Vista previa del perfil"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <UserRound size={46} />
+                  )}
+                </div>
+                <div className="text-center sm:text-left">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-white px-4 py-2.5 font-medium text-primary shadow-sm ring-1 ring-gray-200 hover:bg-gray-50">
+                    <Camera size={18} />
+                    Seleccionar foto
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="mt-2 text-sm text-gray-500">
+                    {photoName || 'JPG, PNG o WEBP.'}
+                  </p>
+                  <p className="mt-1 text-xs text-amber-600">
+                    La foto se guardará cuando implementemos la subida por URL.
+                  </p>
+                </div>
+              </div>
+            </section>
 
             <section>
               <div className="mb-5 flex items-center gap-2">

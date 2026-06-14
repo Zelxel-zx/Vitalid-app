@@ -177,7 +177,7 @@ export function DoctorRegistrationForm({
                 <h2 className="text-lg font-semibold text-gray-900">Foto de perfil</h2>
               </div>
               <div className="flex flex-col items-center gap-5 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 sm:flex-row">
-                <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200">
+                <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-primary">
                   {photoPreview ? (
                     <img
                       src={photoPreview}
@@ -185,7 +185,7 @@ export function DoctorRegistrationForm({
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <UserRound className="text-gray-400" size={46} />
+                    <UserRound size={46} />
                   )}
                 </div>
                 <div className="text-center sm:text-left">

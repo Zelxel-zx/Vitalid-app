@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { ChangeEvent, useState, useEffect } from 'react';
 import { getProfile, updateProfile, ProfileResponse, splitAllergies } from '../../services/profileService';
 import { downloadPatientReport } from '../../services/reportService';
-import { User, FileText } from 'lucide-react';
+import { Camera, User, FileText } from 'lucide-react';
+import { getAuthItem } from '../../services/authStorage';
 
 export function ProfileView() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
@@ -9,6 +10,9 @@ export function ProfileView() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Form state
+  const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState('');
+  const [photoPreview, setPhotoPreview] = useState('');
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [bloodType, setBloodType] = useState('');
@@ -23,9 +27,12 @@ export function ProfileView() {
   const loadProfile = async () => {
     try {
       setIsLoading(true);
-      const userId = Number(localStorage.getItem('authUserId'));
+      const userId = Number(getAuthItem('authUserId'));
       const data = await getProfile(userId);
       setProfile(data);
+      setName(data.name || '');
+      setAvatar(data.avatar || '');
+      setPhotoPreview(data.avatar || '');
       setPhone(data.phone || '');
       setBirthDate(data.dateOfBirth || '');
       setBloodType(data.bloodType || '');
@@ -39,15 +46,27 @@ export function ProfileView() {
     }
   };
 
+  const handlePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Selecciona un archivo de imagen válido');
+      return;
+    }
+
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
   const handleSave = async () => {
     if (!profile) return;
     try {
       setIsLoading(true);
-      const userId = Number(localStorage.getItem('authUserId'));
+      const userId = Number(getAuthItem('authUserId'));
       const allergiesArray = splitAllergies(allergiesStr);
       const updated = await updateProfile({
-        name: profile.name,
+        name: name.trim(),
         phone,
+        avatar: avatar.trim(),
         dateOfBirth: birthDate,
         bloodType,
         allergies: allergiesArray,
@@ -55,6 +74,8 @@ export function ProfileView() {
         experienceYears
       }, userId);
       setProfile(updated);
+      setPhotoPreview(updated.avatar || '');
+      sessionStorage.setItem('authUserName', updated.name);
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -78,8 +99,12 @@ export function ProfileView() {
 
       <div className="bg-white rounded-xl p-6 border border-gray-200">
         <div className="flex items-center gap-6 mb-6">
-          <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-             <User size={40} className="text-gray-400" />
+          <div className="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center overflow-hidden">
+             {profile.avatar ? (
+               <img src={profile.avatar} alt={profile.name} className="h-full w-full object-cover" />
+             ) : (
+               <User size={40} />
+             )}
           </div>
           <div>
             <h3 className="text-xl font-semibold text-gray-900">{profile.name}</h3>
@@ -138,7 +163,7 @@ export function ProfileView() {
                 <button 
                   onClick={async () => {
                     try {
-                      await downloadPatientReport(Number(localStorage.getItem('authUserId')));
+                      await downloadPatientReport(Number(getAuthItem('authUserId')));
                     } catch (error) {
                       console.error('Error downloading report:', error);
                       alert('Error al descargar el historial médico');
@@ -158,6 +183,39 @@ export function ProfileView() {
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 sm:flex-row">
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-primary">
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Vista previa" className="h-full w-full object-cover" />
+                ) : (
+                  <User size={40} />
+                )}
+              </div>
+              <div className="w-full space-y-3">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-primary hover:bg-gray-50">
+                  <Camera size={17} />
+                  Seleccionar foto
+                  <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+                </label>
+                <input
+                  type="url"
+                  value={avatar}
+                  onChange={(event) => {
+                    setAvatar(event.target.value);
+                    setPhotoPreview(event.target.value);
+                  }}
+                  className="w-full rounded border p-2"
+                  placeholder="URL de la foto de perfil"
+                />
+                <p className="text-xs text-gray-500">
+                  La imagen seleccionada se previsualiza. Para guardarla actualmente debes ingresar su URL.
+                </p>
+              </div>
+            </div>
+            <div>
+               <label className="text-sm text-gray-600">Nombre</label>
+               <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded mt-1" />
+            </div>
             <div>
                <label className="text-sm text-gray-600">Teléfono</label>
                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 border rounded mt-1" />

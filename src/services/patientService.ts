@@ -3,6 +3,7 @@ import { getJson, postJson } from './apiClient';
 export interface CreatePatientInput {
   dateOfBirth: string;
   bloodType: string;
+  avatar: string;
   address: string;
   city: string;
   state: string;
@@ -18,6 +19,7 @@ export interface PatientResponse {
   email: string;
   dateOfBirth: string;
   bloodType: string;
+  avatar: string;
   address: string;
   city: string;
   state: string;

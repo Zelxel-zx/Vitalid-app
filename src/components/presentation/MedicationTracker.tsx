@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Pill, Clock, Check, X, AlertCircle, Plus } from 'lucide-react';
 import { getMedicationsForPatient, takeDose, addSideEffect, MedicationResponse } from '../../services/medicationService';
 import { usePatientDashboard } from '../../hooks/usePatientDashboard';
+import { getAuthItem } from '../../services/authStorage';
 
 interface Medication {
   id: string;
@@ -23,7 +24,7 @@ interface MedicationLog {
 export function MedicationTracker() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const userId = Number(localStorage.getItem('authUserId')) || null;
+  const userId = Number(getAuthItem('authUserId')) || null;
   const { summary: dashboardSummary } = usePatientDashboard(userId);
 
   const [todayLogs, setTodayLogs] = useState<MedicationLog[]>([]);
@@ -39,7 +40,7 @@ export function MedicationTracker() {
   const loadMedications = async () => {
     try {
       setIsLoading(true);
-      const userId = Number(localStorage.getItem('authUserId'));
+      const userId = Number(getAuthItem('authUserId'));
       if (!userId) return;
 
       const data = await getMedicationsForPatient(userId);
@@ -211,7 +212,7 @@ export function MedicationTracker() {
                 {lowStock && <AlertCircle className="text-red-700 flex-shrink-0" size={20} />}
                 <div>
                   <p className={`text-sm font-medium ${lowStock ? 'text-red-900' : 'text-gray-700'}`}>
-                    {medication.pillsRemaining} pastillas restantes ({daysRemaining} días)
+                    {medication.pillsRemaining} pastillas en stock ({daysRemaining} días)
                   </p>
                   {lowStock && (
                     <p className="text-sm text-red-700 mt-1">

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Calendar, Clock, Video, MapPin, Filter, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, Filter, ChevronLeft, ChevronRight, Search, UserRound } from 'lucide-react';
 import { DoctorSummary, formatDoctorName, getAllDoctors, getDoctorAvailability } from '../../services/doctorService';
 import { createAppointment } from '../../services/appointmentService';
 import { getPatientByUserId } from '../../services/patientService';
+import { getAuthItem } from '../../services/authStorage';
 
 interface AppointmentBookingProps {
   initialDoctorId?: number | null;
@@ -140,7 +141,7 @@ export function AppointmentBooking({
       try {
         setIsBooking(true);
         setBookingError(null);
-        const userId = Number(localStorage.getItem('authUserId'));
+        const userId = Number(getAuthItem('authUserId'));
         const patient = await getPatientByUserId(userId);
         
         await createAppointment({
@@ -185,11 +186,17 @@ export function AppointmentBooking({
 
         <div className="bg-white rounded-xl border border-primary p-6">
           <div className="flex items-start gap-4 mb-6">
-            <img
-              src={selectedDoctor.avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
-              alt={formatDoctorName(selectedDoctor.name)}
-              className="w-20 h-20 rounded-full object-cover"
-            />
+            {selectedDoctor.avatar ? (
+              <img
+                src={selectedDoctor.avatar}
+                alt={formatDoctorName(selectedDoctor.name)}
+                className="w-20 h-20 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <UserRound size={36} />
+              </div>
+            )}
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{formatDoctorName(selectedDoctor.name)}</h2>
               <p className="text-gray-600">{selectedDoctor.specialty}</p>
@@ -238,7 +245,7 @@ export function AppointmentBooking({
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-3">Selecciona una fecha</label>
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="rounded-lg bg-gray-100/[1] p-4 ring-1 ring-gray-200/90">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => changeDate(-1)} className="p-2 hover:bg-gray-200 rounded">
                   <ChevronLeft size={20} />
@@ -247,7 +254,7 @@ export function AppointmentBooking({
                   <button
                     type="button"
                     onClick={openDatePicker}
-                    className="rounded-lg px-3 py-2 text-center transition-colors hover:bg-white"
+                    className="rounded-lg px-3 py-2 text-center transition-colors hover:bg-blue-50"
                   >
                     <span className="flex items-center justify-center gap-2 font-medium capitalize text-gray-900">
                       <Calendar size={18} className="text-primary" />
@@ -297,7 +304,7 @@ export function AppointmentBooking({
                               ? 'cursor-not-allowed border border-red-200 bg-red-50 text-red-600'
                               : selectedTime === time
                                 ? 'bg-primary text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-primary'
+                                : 'bg-gray-100 text-gray-700 ring-1 ring-gray-200/90 hover:bg-blue-50 hover:ring-blue-200/90 hover:text-primary'
                           }`}
                         >
                           {time}
@@ -376,11 +383,17 @@ export function AppointmentBooking({
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
-                  <img
-                    src={doctor.avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
-                    alt={formatDoctorName(doctor.name)}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
+                  {doctor.avatar ? (
+                    <img
+                      src={doctor.avatar}
+                      alt={formatDoctorName(doctor.name)}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <UserRound size={30} />
+                    </div>
+                  )}
                   <div>
                     <h3 className="font-semibold text-gray-900">{formatDoctorName(doctor.name)}</h3>
                     <p className="text-sm text-gray-600">{doctor.specialty}</p>

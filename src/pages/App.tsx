@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Home, MessageSquare, Activity, User, Menu, X, ClipboardList, Calendar, Users } from 'lucide-react';
-import { LoginScreen, DoctorCard, ChatInterface, ProgressChart, TreatmentsView, AppointmentBooking, AppointmentHistory, DoctorDashboard, PatientRegistrationForm, DoctorRegistrationForm } from '../components/presentation';
+import { useEffect, useState } from 'react';
+import { Home, MessageSquare, Activity, User, UserRound, Menu, X, ClipboardList, Calendar, Users } from 'lucide-react';
+import { LoginScreen, DoctorCard, PatientMessageCard, ChatInterface, ProgressChart, TreatmentsView, AppointmentBooking, AppointmentHistory, DoctorDashboard, DoctorPatientsView, PatientRegistrationForm, DoctorRegistrationForm } from '../components/presentation';
 import { ProfileView } from '../components/presentation/ProfileView';
 import logo from '../images/Logo (1).svg';
 import logoutIcon from '../images/Logout.png';
@@ -12,6 +12,10 @@ import { useHealthData } from '../hooks/useHealthData';
 import { usePatientDashboard } from '../hooks/usePatientDashboard';
 import { usePatientDoctors } from '../hooks/usePatientDoctors';
 import { View } from '../types';
+import { getAuthItem } from '../services/authStorage';
+import { getAllPatients, PatientResponse } from '../services/patientService';
+import { getMyTreatments } from '../services/treatmentService';
+import { getProfile, PROFILE_UPDATED } from '../services/profileService';
 
 export default function App() {
   const {
@@ -49,10 +53,10 @@ export default function App() {
 
   return (
     <MainApp
-      key={localStorage.getItem('authUserId')}
+      key={getAuthItem('authUserId')}
       userType={userType}
       userName={userName}
-      userId={Number(localStorage.getItem('authUserId')) || null}
+      userId={Number(getAuthItem('authUserId')) || null}
       handleLogout={handleLogout}
     />
   );
@@ -71,7 +75,6 @@ function MainApp({
 }) {
   const { currentView, selectedDoctor, mobileMenuOpen, setCurrentView, setSelectedDoctor, toggleMobileMenu, handleDoctorClick } = useNavigation();
   const { doctors } = useDoctors();
-  const { messages } = useChat(selectedDoctor);
   const { bloodPressure, bloodSugar } = useHealthData();
   const { summary: dashboardSummary } = usePatientDashboard(
     userType === 'patient' ? userId : null,
@@ -80,11 +83,56 @@ function MainApp({
     userType === 'patient' ? userId : null,
   );
   const patientDoctors = doctors.filter((doctor) => patientDoctorIds.has(doctor.id));
-  const firstName = userName?.trim().split(/\s+/)[0] || 'Paciente';
+  const [displayName, setDisplayName] = useState(userName || '');
+  const [profileAvatar, setProfileAvatar] = useState('');
+  const firstName = displayName.trim().split(/\s+/)[0] || 'Paciente';
   const [appointmentPrefill, setAppointmentPrefill] = useState<{
     doctorId: number;
     date: string;
   } | null>(null);
+  const [doctorPatients, setDoctorPatients] = useState<PatientResponse[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<PatientResponse | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    getProfile(userId)
+      .then((profile) => {
+        setDisplayName(profile.name || '');
+        setProfileAvatar(profile.avatar || '');
+      })
+      .catch((error) => console.error('Error loading header profile:', error));
+
+    const handleProfileUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ name?: string; avatar?: string }>).detail;
+      if (detail?.name !== undefined) setDisplayName(detail.name);
+      if (detail?.avatar !== undefined) setProfileAvatar(detail.avatar);
+    };
+
+    window.addEventListener(PROFILE_UPDATED, handleProfileUpdated);
+    return () => window.removeEventListener(PROFILE_UPDATED, handleProfileUpdated);
+  }, [userId]);
+
+  useEffect(() => {
+    if (userType !== 'doctor') {
+      setDoctorPatients([]);
+      return;
+    }
+
+    Promise.all([getMyTreatments(), getAllPatients()])
+      .then(([treatments, patients]) => {
+        const patientIds = new Set(treatments.map((treatment) => treatment.patientId));
+        setDoctorPatients(patients.filter((patient) => patientIds.has(patient.id)));
+      })
+      .catch((error) => {
+        console.error('Error loading doctor patients for messages:', error);
+        setDoctorPatients([]);
+      });
+  }, [userType]);
+
+  const activeChatId =
+    userType === 'doctor' ? selectedPatient?.id ?? null : selectedDoctor;
+  const { messages: activeMessages } = useChat(activeChatId);
 
   const patientNavItems = [
     { id: 'home' as View, icon: Home, label: 'Inicio' },
@@ -149,6 +197,7 @@ function MainApp({
                       setAppointmentPrefill(null);
                       setCurrentView(item.id);
                       setSelectedDoctor(null);
+                      setSelectedPatient(null);
                     }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                       currentView === item.id
@@ -182,6 +231,7 @@ function MainApp({
                       setAppointmentPrefill(null);
                       setCurrentView(item.id);
                       setSelectedDoctor(null);
+                      setSelectedPatient(null);
                       toggleMobileMenu();
                     }}
                     className={`w-full flex items-center gap-2 px-4 py-3 transition-colors ${
@@ -211,7 +261,20 @@ function MainApp({
         {currentView === 'home' && userType === 'patient' && (
           <div className="space-y-8">
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Bienvenido, {firstName}</h2>
+              <div className="mb-6 flex items-center gap-4">
+                {profileAvatar ? (
+                  <img
+                    src={profileAvatar}
+                    alt={displayName}
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <UserRound size={30} />
+                  </div>
+                )}
+                <h2 className="text-2xl font-semibold text-gray-900">Bienvenido, {firstName}</h2>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-primary text-white rounded-xl p-6">
@@ -283,7 +346,7 @@ function MainApp({
           </div>
         )}
 
-        {currentView === 'treatments' && (
+        {currentView === 'treatments' && userType === 'patient' && (
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-semibold text-gray-900 mb-2">Mis Tratamientos</h2>
@@ -329,37 +392,68 @@ function MainApp({
         {currentView === 'patients' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Monitoreo de Pacientes</h2>
-              <p className="text-gray-600">Identifica pacientes en riesgo e interviene preventivamente</p>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Mis Pacientes</h2>
+              <p className="text-gray-600">Consulta su información clínica, tratamientos y seguimiento</p>
             </div>
-            <DoctorDashboard />
+            <DoctorPatientsView />
           </div>
         )}
 
         {currentView === 'messages' && (
           <div className="space-y-6">
-            {selectedDoctor ? (
+            {(userType === 'doctor' ? selectedPatient : selectedDoctor) ? (
               <div className="h-[calc(100vh-12rem)]">
                 <ChatInterface
-                  doctorName={doctors.find(d => d.id === selectedDoctor)?.name || ''}
-                  doctorAvatar={doctors.find(d => d.id === selectedDoctor)?.avatar || ''}
-                  messages={messages}
-                  onBack={() => setSelectedDoctor(null)}
+                  doctorName={
+                    userType === 'doctor'
+                      ? selectedPatient?.name || ''
+                      : doctors.find((doctor) => doctor.id === selectedDoctor)?.name || ''
+                  }
+                  doctorAvatar={
+                    userType === 'doctor'
+                      ? selectedPatient?.avatar || ''
+                      : doctors.find((doctor) => doctor.id === selectedDoctor)?.avatar || ''
+                  }
+                  messages={activeMessages}
+                  currentUserType={userType}
+                  onBack={() => {
+                    setSelectedDoctor(null);
+                    setSelectedPatient(null);
+                  }}
                 />
               </div>
             ) : (
               <>
                 <h2 className="text-2xl font-semibold text-gray-900">Mensajes</h2>
-                <p className="text-gray-600 mb-6">Comunícate con tus doctores de forma segura y privada</p>
+                <p className="text-gray-600 mb-6">
+                  {userType === 'doctor'
+                    ? 'Comunícate con tus pacientes de forma segura y privada'
+                    : 'Comunícate con tus doctores de forma segura y privada'}
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {doctors.map((doctor) => (
-                    <DoctorCard
-                      key={doctor.id}
-                      {...doctor}
-                      onClick={() => handleDoctorClick(doctor.id)}
-                    />
-                  ))}
+                  {userType === 'doctor'
+                    ? doctorPatients.map((patient) => (
+                        <PatientMessageCard
+                          key={patient.id}
+                          name={patient.name}
+                          email={patient.email}
+                          avatar={patient.avatar}
+                          onClick={() => setSelectedPatient(patient)}
+                        />
+                      ))
+                    : doctors.map((doctor) => (
+                        <DoctorCard
+                          key={doctor.id}
+                          {...doctor}
+                          onClick={() => handleDoctorClick(doctor.id)}
+                        />
+                      ))}
                 </div>
+                {userType === 'doctor' && doctorPatients.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
+                    Aún no tienes pacientes vinculados para iniciar una conversación.
+                  </div>
+                )}
               </>
             )}
           </div>
