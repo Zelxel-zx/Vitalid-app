@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getProfile, updateProfile, ProfileResponse } from '../../services/profileService';
+import { getProfile, updateProfile, ProfileResponse, splitAllergies } from '../../services/profileService';
 import { downloadPatientReport } from '../../services/reportService';
 import { User, FileText } from 'lucide-react';
 
@@ -13,7 +13,6 @@ export function ProfileView() {
   const [birthDate, setBirthDate] = useState('');
   const [bloodType, setBloodType] = useState('');
   const [allergiesStr, setAllergiesStr] = useState('');
-  const [medicalHistory, setMedicalHistory] = useState('');
   const [specialty, setSpecialty] = useState('');
   const [experienceYears, setExperienceYears] = useState(0);
 
@@ -28,12 +27,9 @@ export function ProfileView() {
       const data = await getProfile(userId);
       setProfile(data);
       setPhone(data.phone || '');
-      // El backend de Spring envía dateOfBirth en lugar de birthDate
-      setBirthDate((data as any).dateOfBirth || data.birthDate || '');
+      setBirthDate(data.dateOfBirth || '');
       setBloodType(data.bloodType || '');
-      const allergies = data.allergies || (data as any).allergia || [];
-      setAllergiesStr(Array.isArray(allergies) ? allergies.join(', ') : '');
-      setMedicalHistory(data.medicalHistory || '');
+      setAllergiesStr(data.allergies.join(', '));
       setSpecialty(data.specialty || '');
       setExperienceYears(data.experienceYears || 0);
     } catch (error) {
@@ -48,14 +44,13 @@ export function ProfileView() {
     try {
       setIsLoading(true);
       const userId = Number(localStorage.getItem('authUserId'));
-      const allergiesArray = allergiesStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      const allergiesArray = splitAllergies(allergiesStr);
       const updated = await updateProfile({
         name: profile.name,
         phone,
-        birthDate,
+        dateOfBirth: birthDate,
         bloodType,
         allergies: allergiesArray,
-        medicalHistory,
         specialty,
         experienceYears
       }, userId);
@@ -88,7 +83,7 @@ export function ProfileView() {
           </div>
           <div>
             <h3 className="text-xl font-semibold text-gray-900">{profile.name}</h3>
-            <p className="text-gray-500">Tipo: {String((profile as any).type || profile.userType || '').toUpperCase()}</p>
+            <p className="text-gray-500">Tipo: {profile.type}</p>
           </div>
         </div>
 
@@ -102,11 +97,11 @@ export function ProfileView() {
               <label className="text-sm text-gray-600">Teléfono</label>
               <p className="font-medium">{profile.phone || 'No registrado'}</p>
             </div>
-            {String((profile as any).type || profile.userType || '').toUpperCase() === 'PATIENT' && (
+            {profile.type === 'PATIENT' && (
               <>
                 <div>
                   <label className="text-sm text-gray-600">Fecha de Nacimiento</label>
-                  <p className="font-medium">{profile.birthDate || 'No registrada'}</p>
+                  <p className="font-medium">{profile.dateOfBirth || 'No registrada'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Tipo de Sangre</label>
@@ -126,7 +121,7 @@ export function ProfileView() {
                 </div>
               </>
             )}
-            {String((profile as any).type || profile.userType || '').toUpperCase() === 'DOCTOR' && (
+            {profile.type === 'DOCTOR' && (
               <>
                 <div>
                   <label className="text-sm text-gray-600">Especialidad</label>
@@ -139,7 +134,7 @@ export function ProfileView() {
               </>
             )}
             <div className="flex gap-4 mt-6">
-              {String((profile as any).type || profile.userType || '').toUpperCase() === 'PATIENT' && (
+              {profile.type === 'PATIENT' && (
                 <button 
                   onClick={async () => {
                     try {
@@ -167,7 +162,7 @@ export function ProfileView() {
                <label className="text-sm text-gray-600">Teléfono</label>
                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 border rounded mt-1" />
             </div>
-            {String((profile as any).type || profile.userType || '').toUpperCase() === 'PATIENT' && (
+            {profile.type === 'PATIENT' && (
               <>
                 <div>
                    <label className="text-sm text-gray-600">Fecha de Nacimiento (YYYY-MM-DD)</label>
@@ -193,7 +188,7 @@ export function ProfileView() {
                 </div>
               </>
             )}
-            {String((profile as any).type || profile.userType || '').toUpperCase() === 'DOCTOR' && (
+            {profile.type === 'DOCTOR' && (
               <>
                 <div>
                    <label className="text-sm text-gray-600">Especialidad</label>

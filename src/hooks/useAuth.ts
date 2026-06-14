@@ -8,6 +8,8 @@ interface AuthState {
   token: string | null;
   userId: number | null;
   userName: string | null;
+  needsPatientProfile: boolean;
+  needsDoctorProfile: boolean;
 }
 
 export function useAuth() {
@@ -17,6 +19,8 @@ export function useAuth() {
     token: null,
     userId: null,
     userName: null,
+    needsPatientProfile: false,
+    needsDoctorProfile: false,
   });
 
   const handleLogin = useCallback(async (email: string, password: string) => {
@@ -27,10 +31,13 @@ export function useAuth() {
       token: auth.token,
       userId: auth.id,
       userName: auth.name,
+      needsPatientProfile: false,
+      needsDoctorProfile: false,
     });
     localStorage.setItem('authToken', auth.token);
     localStorage.setItem('authUserType', auth.userType);
     localStorage.setItem('authUserId', auth.id.toString());
+    localStorage.setItem('authUserName', auth.name);
   }, []);
 
   const handleRegister = useCallback(async (payload: RegisterInput) => {
@@ -41,10 +48,13 @@ export function useAuth() {
       token: auth.token,
       userId: auth.id,
       userName: auth.name,
+      needsPatientProfile: auth.userType === 'patient',
+      needsDoctorProfile: auth.userType === 'doctor',
     });
     localStorage.setItem('authToken', auth.token);
     localStorage.setItem('authUserType', auth.userType);
     localStorage.setItem('authUserId', auth.id.toString());
+    localStorage.setItem('authUserName', auth.name);
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -54,16 +64,19 @@ export function useAuth() {
       token: null,
       userId: null,
       userName: null,
+      needsPatientProfile: false,
+      needsDoctorProfile: false,
     });
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUserType');
     localStorage.removeItem('authUserId');
+    localStorage.removeItem('authUserName');
   }, []);
 
   return {
     ...authState,
     handleLogin,
     handleRegister,
-    handleLogout
+    handleLogout,
   };
 }

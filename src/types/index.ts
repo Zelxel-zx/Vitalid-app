@@ -9,7 +9,7 @@ export interface User {
 }
 
 // Navigation Types
-export type PatientView = 'home' | 'messages' | 'treatments' | 'medications' | 'appointments' | 'history' | 'profile';
+export type PatientView = 'home' | 'messages' | 'treatments' | 'appointments' | 'history' | 'profile';
 export type DoctorView = 'home' | 'messages' | 'patients' | 'profile';
 export type View = PatientView | DoctorView;
 
@@ -34,7 +34,7 @@ export interface ChatMessage {
 }
 
 // Treatment Types
-export type TreatmentStatus = 'active' | 'completed';
+export type TreatmentStatus = 'active' | 'completed' | 'pending' | 'paused' | 'cancelled';
 
 export interface Treatment {
   title: string;

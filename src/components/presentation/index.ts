@@ -7,3 +7,7 @@ export { MedicationTracker } from './MedicationTracker';
 export { AppointmentBooking } from './AppointmentBooking';
 export { AppointmentHistory } from './AppointmentHistory';
 export { DoctorDashboard } from './DoctorDashboard';
+export { PatientRegistrationForm } from './PatientRegistrationForm';
+export { DoctorRegistrationForm } from './DoctorRegistrationForm';
+export { TreatmentsView } from './TreatmentsView';
+export { TreatmentChecklistView } from './TreatmentChecklistView';

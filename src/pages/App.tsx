@@ -1,5 +1,6 @@
-import { Home, MessageSquare, Activity, User, Menu, X, Pill, Calendar, Users } from 'lucide-react';
-import { LoginScreen, DoctorCard, ChatInterface, TreatmentCard, ProgressChart, MedicationTracker, AppointmentBooking, AppointmentHistory, DoctorDashboard } from '../components/presentation';
+import { useState } from 'react';
+import { Home, MessageSquare, Activity, User, Menu, X, ClipboardList, Calendar, Users } from 'lucide-react';
+import { LoginScreen, DoctorCard, ChatInterface, ProgressChart, TreatmentsView, AppointmentBooking, AppointmentHistory, DoctorDashboard, PatientRegistrationForm, DoctorRegistrationForm } from '../components/presentation';
 import { ProfileView } from '../components/presentation/ProfileView';
 import logo from '../images/Logo (1).svg';
 import logoutIcon from '../images/Logout.png';
@@ -7,30 +8,87 @@ import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '../hooks/useNavigation';
 import { useDoctors } from '../hooks/useDoctors';
 import { useChat } from '../hooks/useChat';
-import { useTreatments } from '../hooks/useTreatments';
 import { useHealthData } from '../hooks/useHealthData';
+import { usePatientDashboard } from '../hooks/usePatientDashboard';
+import { usePatientDoctors } from '../hooks/usePatientDoctors';
 import { View } from '../types';
 
 export default function App() {
-  const { isLoggedIn, userType, handleLogin, handleRegister, handleLogout } = useAuth();
+  const {
+    isLoggedIn,
+    userType,
+    userName,
+    needsPatientProfile,
+    needsDoctorProfile,
+    handleLogin,
+    handleRegister,
+    handleLogout,
+  } = useAuth();
 
   if (!isLoggedIn) {
     return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
   }
 
-  return <MainApp key={localStorage.getItem('authUserId')} userType={userType} handleLogout={handleLogout} />;
+  if (userType === 'patient' && needsPatientProfile) {
+    return (
+      <PatientRegistrationForm
+        onComplete={handleLogout}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (userType === 'doctor' && needsDoctorProfile) {
+    return (
+      <DoctorRegistrationForm
+        onComplete={handleLogout}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  return (
+    <MainApp
+      key={localStorage.getItem('authUserId')}
+      userType={userType}
+      userName={userName}
+      userId={Number(localStorage.getItem('authUserId')) || null}
+      handleLogout={handleLogout}
+    />
+  );
 }
 
-function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | null, handleLogout: () => void }) {
+function MainApp({
+  userType,
+  userName,
+  userId,
+  handleLogout,
+}: {
+  userType: 'patient' | 'doctor' | null;
+  userName: string | null;
+  userId: number | null;
+  handleLogout: () => void;
+}) {
   const { currentView, selectedDoctor, mobileMenuOpen, setCurrentView, setSelectedDoctor, toggleMobileMenu, handleDoctorClick } = useNavigation();
   const { doctors } = useDoctors();
   const { messages } = useChat(selectedDoctor);
-  const { treatments } = useTreatments();
   const { bloodPressure, bloodSugar } = useHealthData();
+  const { summary: dashboardSummary } = usePatientDashboard(
+    userType === 'patient' ? userId : null,
+  );
+  const patientDoctorIds = usePatientDoctors(
+    userType === 'patient' ? userId : null,
+  );
+  const patientDoctors = doctors.filter((doctor) => patientDoctorIds.has(doctor.id));
+  const firstName = userName?.trim().split(/\s+/)[0] || 'Paciente';
+  const [appointmentPrefill, setAppointmentPrefill] = useState<{
+    doctorId: number;
+    date: string;
+  } | null>(null);
 
   const patientNavItems = [
     { id: 'home' as View, icon: Home, label: 'Inicio' },
-    { id: 'medications' as View, icon: Pill, label: 'Medicamentos' },
+    { id: 'treatments' as View, icon: ClipboardList, label: 'Tratamientos' },
     { id: 'appointments' as View, icon: Calendar, label: 'Agendar Cita' },
     { id: 'history' as View, icon: Activity, label: 'Mis Citas' },
     { id: 'messages' as View, icon: MessageSquare, label: 'Mensajes' },
@@ -50,6 +108,15 @@ function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | 
   const handleLogoutClick = () => {
     handleLogout();
     setCurrentView('home');
+  };
+
+  const handleScheduleTreatmentFollowUp = (
+    doctorId: number,
+    date: string,
+  ) => {
+    setAppointmentPrefill({ doctorId, date });
+    setSelectedDoctor(null);
+    setCurrentView('appointments');
   };
 
   return (
@@ -79,6 +146,7 @@ function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | 
                   <button
                     key={item.id}
                     onClick={() => {
+                      setAppointmentPrefill(null);
                       setCurrentView(item.id);
                       setSelectedDoctor(null);
                     }}
@@ -111,6 +179,7 @@ function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | 
                   <button
                     key={item.id}
                     onClick={() => {
+                      setAppointmentPrefill(null);
                       setCurrentView(item.id);
                       setSelectedDoctor(null);
                       toggleMobileMenu();
@@ -142,31 +211,31 @@ function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | 
         {currentView === 'home' && userType === 'patient' && (
           <div className="space-y-8">
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Bienvenido, John</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Bienvenido, {firstName}</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-primary text-white rounded-xl p-6">
                   <h3 className="text-sm opacity-90 mb-1">Tratamientos Activos</h3>
-                  <p className="text-3xl font-semibold">{treatments.filter(t => t.status === 'active').length}</p>
+                  <p className="text-3xl font-semibold">{dashboardSummary.activeTreatments}</p>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <h3 className="text-sm text-gray-600 mb-1">Próximas Citas</h3>
-                  <p className="text-3xl font-semibold text-gray-900">2</p>
+                  <p className="text-3xl font-semibold text-gray-900">{dashboardSummary.upcomingAppointments}</p>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <h3 className="text-sm text-gray-600 mb-1">Mensajes Sin Leer</h3>
-                  <p className="text-3xl font-semibold text-gray-900">{doctors.reduce((sum, d) => sum + d.unreadMessages, 0)}</p>
+                  <p className="text-3xl font-semibold text-gray-900">{dashboardSummary.unreadMessages}</p>
                 </div>
               </div>
 
               <div className="bg-gradient-to-r from-primary to-cyan-500 text-white rounded-xl p-6 mb-8">
                 <h3 className="font-semibold mb-2">Cumplimiento de Medicamentos Hoy</h3>
-                <div className="flex items-end gap-4">
-                  <div className="text-4xl font-bold">75%</div>
-                  <div className="text-cyan-100 mb-1">3 de 4 dosis tomadas</div>
-                </div>
+                <div className="text-4xl font-bold">{dashboardSummary.medicationCompliance}%</div>
                 <div className="mt-4 bg-white/20 rounded-full h-2">
-                  <div className="bg-white h-2 rounded-full transition-all duration-300" style={{ width: '75%' }} />
+                  <div
+                    className="bg-white h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${dashboardSummary.medicationCompliance}%` }}
+                  />
                 </div>
               </div>
             </div>
@@ -174,7 +243,7 @@ function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | 
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Tus Doctores</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {doctors.map((doctor) => (
+                {patientDoctors.map((doctor) => (
                   <DoctorCard
                     key={doctor.id}
                     {...doctor}
@@ -214,13 +283,13 @@ function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | 
           </div>
         )}
 
-        {currentView === 'medications' && (
+        {currentView === 'treatments' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Mis Medicamentos</h2>
-              <p className="text-gray-600">Registra tus dosis diarias y mantén el control de tu tratamiento</p>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Mis Tratamientos</h2>
+              <p className="text-gray-600">Consulta el avance de tus tratamientos y los medicamentos indicados</p>
             </div>
-            <MedicationTracker />
+            <TreatmentsView />
           </div>
         )}
 
@@ -234,7 +303,14 @@ function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | 
                 {userType === 'doctor' ? 'Revisa tus próximas consultas programadas' : 'Encuentra y reserva citas con tus doctores'}
               </p>
             </div>
-            {userType === 'doctor' ? <AppointmentHistory /> : <AppointmentBooking />}
+            {userType === 'doctor' ? (
+              <AppointmentHistory />
+            ) : (
+              <AppointmentBooking
+                initialDoctorId={appointmentPrefill?.doctorId}
+                initialDate={appointmentPrefill?.date}
+              />
+            )}
           </div>
         )}
 
@@ -244,7 +320,9 @@ function MainApp({ userType, handleLogout }: { userType: 'patient' | 'doctor' | 
               <h2 className="text-2xl font-semibold text-gray-900 mb-2">Mis Consultas</h2>
               <p className="text-gray-600">Revisa tus citas programadas y consultas anteriores</p>
             </div>
-            <AppointmentHistory />
+            <AppointmentHistory
+              onScheduleTreatmentFollowUp={handleScheduleTreatmentFollowUp}
+            />
           </div>
         )}
 

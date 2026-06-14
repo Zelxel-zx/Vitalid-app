@@ -1,416 +1,1129 @@
-import { useState, useEffect } from 'react';
-import { AlertTriangle, TrendingDown, CheckCircle2, Clock, FileText, Pill, X, Search } from 'lucide-react';
-import { downloadPatientReport } from '../../services/reportService';
-import { createMedication } from '../../services/medicationService';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  FileText,
+  MessageSquare,
+  Pill,
+  Search,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
 import { getAllPatients, PatientResponse } from '../../services/patientService';
+import {
+  addMedicationToTreatment,
+  createTreatment,
+  CreateMedicationInput,
+  getMyTreatments,
+  TreatmentResponse,
+} from '../../services/treatmentService';
+import {
+  getTreatmentChecklist,
+  TreatmentChecklist,
+} from '../../services/checklistService';
 
-interface PatientStatus {
-  id: string;
-  name: string;
-  avatar: string;
-  condition: string;
-  riskLevel: 'high' | 'medium' | 'low';
+type RiskLevel = 'high' | 'medium' | 'low';
+
+interface DoctorPatient {
+  patient: PatientResponse;
+  treatments: TreatmentResponse[];
   compliance: number;
-  lastUpdate: string;
   missedDoses: number;
+  riskLevel: RiskLevel;
+  sideEffects: Array<{
+    medication: string;
+    effects: string[];
+  }>;
 }
+
+interface TreatmentFormState {
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  nextAppointment: string;
+}
+
+const today = getLocalDate();
+const defaultEndDate = addDays(today, 30);
+
+const emptyMedication: CreateMedicationInput = {
+  name: '',
+  dosage: '',
+  frequency: 'DIARIO',
+  startDate: today,
+  endDate: defaultEndDate,
+  instructions: '',
+  unitType: 'PILL',
+  scheduledTimes: ['08:00'],
+};
+
 export function DoctorDashboard() {
-  const [patients, setPatients] = useState<PatientStatus[]>([]);
+  const [patients, setPatients] = useState<DoctorPatient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadPatients();
-  }, []);
+  const [error, setError] = useState<string | null>(null);
+  const [prescriptionPatient, setPrescriptionPatient] =
+    useState<DoctorPatient | null>(null);
+  const [effectsPatient, setEffectsPatient] = useState<DoctorPatient | null>(
+    null,
+  );
+  const [prescriptionMode, setPrescriptionMode] = useState<
+    'treatments' | 'new-treatment' | 'new-medication'
+  >('treatments');
+  const [selectedTreatmentId, setSelectedTreatmentId] = useState<number | null>(
+    null,
+  );
+  const [treatmentForm, setTreatmentForm] = useState<TreatmentFormState>({
+    title: '',
+    description: '',
+    startDate: today,
+    endDate: defaultEndDate,
+    nextAppointment: '',
+  });
+  const [medicationForm, setMedicationForm] =
+    useState<CreateMedicationInput>(emptyMedication);
+  const [scheduledTimesText, setScheduledTimesText] = useState('08:00');
+  const [isSaving, setIsSaving] = useState(false);
 
   const loadPatients = async () => {
     try {
       setIsLoading(true);
-      const data = await getAllPatients();
-      
-      const mapped: PatientStatus[] = data.map(p => ({
-        id: String(p.userId), // Store userId here to make prescriptions and reports work smoothly
-        name: p.name || 'Paciente sin nombre',
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name || 'Paciente')}&background=random`,
-        condition: p.medicalHistory || 'Sin historial clínico',
-        // Mock the risk level and compliance for now, since these aren't in the DB natively yet
-        riskLevel: Math.random() > 0.7 ? 'high' : Math.random() > 0.4 ? 'medium' : 'low',
-        compliance: Math.floor(Math.random() * 40) + 60,
-        lastUpdate: 'Recientemente',
-        missedDoses: Math.floor(Math.random() * 5)
-      }));
-      
+      setError(null);
+      const [patientData, treatmentData] = await Promise.all([
+        getAllPatients(),
+        getMyTreatments(),
+      ]);
+
+      const mapped = await Promise.all(
+        patientData.map((patient) =>
+          buildDoctorPatient(
+            patient,
+            treatmentData.filter(
+              (treatment) => treatment.patientId === patient.id,
+            ),
+          ),
+        ),
+      );
       setPatients(mapped);
-    } catch (error) {
-      console.error('Error loading patients:', error);
+    } catch (err) {
+      console.error('Error loading doctor dashboard:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'No se pudo cargar el monitoreo de pacientes.',
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const filteredPatients = patients.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.condition.toLowerCase().includes(searchTerm.toLowerCase())
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
+  const filteredPatients = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return patients;
+    return patients.filter(
+      ({ patient }) =>
+        patient.name.toLowerCase().includes(term) ||
+        patient.medicalHistory?.toLowerCase().includes(term),
+    );
+  }, [patients, searchTerm]);
+
+  const highRiskPatients = patients.filter(
+    (patient) => patient.riskLevel === 'high',
+  );
+  const mediumRiskPatients = patients.filter(
+    (patient) => patient.riskLevel === 'medium',
+  );
+  const lowRiskPatients = patients.filter(
+    (patient) => patient.riskLevel === 'low',
+  );
+  const monitoredPatients = filteredPatients.filter(
+    (patient) => patient.riskLevel !== 'high',
   );
 
-  const highRiskPatients = filteredPatients.filter(p => p.riskLevel === 'high');
-  const mediumRiskPatients = filteredPatients.filter(p => p.riskLevel === 'medium');
-  const lowRiskPatients = filteredPatients.filter(p => p.riskLevel === 'low');
-
-  const getRiskColor = (level: 'high' | 'medium' | 'low') => {
-    switch (level) {
-      case 'high':
-        return 'bg-red-100 text-red-700 border-red-200';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'low':
-        return 'bg-green-100 text-green-700 border-green-200';
-    }
+  const openPrescriptionPanel = (patient: DoctorPatient) => {
+    setPrescriptionPatient(patient);
+    setPrescriptionMode('treatments');
+    setSelectedTreatmentId(patient.treatments[0]?.id ?? null);
+    resetForms();
   };
 
-  const getRiskIcon = (level: 'high' | 'medium' | 'low') => {
-    switch (level) {
-      case 'high':
-        return <AlertTriangle size={16} />;
-      case 'medium':
-        return <Clock size={16} />;
-      case 'low':
-        return <CheckCircle2 size={16} />;
-    }
-  };
-
-  const handleContactPatient = (patientId: string) => {
-    console.log('Contactando paciente:', patientId);
-    alert('Iniciando contacto con el paciente');
-  };
-
-  // Prescription Modal State
-  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  const [newMedName, setNewMedName] = useState('');
-  const [newMedDosage, setNewMedDosage] = useState('');
-  const [newMedFrequency, setNewMedFrequency] = useState('1 vez al día');
-  const [newMedTotalPills, setNewMedTotalPills] = useState(30);
-
-  const handlePrescribe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedPatientId) return;
+  const handleCreateTreatment = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!prescriptionPatient) return;
 
     try {
-      const startDate = new Date().toISOString().split('T')[0];
-      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-      // Assuming selectedPatientId maps to the user ID since this is mock data
-      await createMedication(Number(selectedPatientId), {
-        patientId: 0,
-        name: newMedName,
-        dosage: newMedDosage,
-        frequency: newMedFrequency,
-        totalPills: newMedTotalPills,
-        startDate,
-        endDate
+      setIsSaving(true);
+      setError(null);
+      await createTreatment({
+        patientId: prescriptionPatient.patient.id,
+        title: treatmentForm.title.trim(),
+        description: treatmentForm.description.trim(),
+        status: 'ACTIVE',
+        startDate: treatmentForm.startDate,
+        endDate: treatmentForm.endDate,
+        nextAppointment: treatmentForm.nextAppointment || undefined,
+        medications: [buildMedicationPayload()],
       });
-
-      alert('Receta enviada exitosamente al paciente');
-      setShowPrescriptionModal(false);
-      setNewMedName('');
-      setNewMedDosage('');
-      setNewMedTotalPills(30);
-    } catch (error) {
-      console.error('Error prescribing:', error);
-      alert('Error al recetar. Es posible que este paciente de prueba no exista en la base de datos.');
+      closePrescriptionPanel();
+      await loadPatients();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'No se pudo crear el tratamiento.',
+      );
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  const handleAddMedication = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedTreatmentId) return;
+
+    try {
+      setIsSaving(true);
+      setError(null);
+      await addMedicationToTreatment(
+        selectedTreatmentId,
+        buildMedicationPayload(),
+      );
+      closePrescriptionPanel();
+      await loadPatients();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'No se pudo agregar el medicamento.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const buildMedicationPayload = (): CreateMedicationInput => ({
+    ...medicationForm,
+    name: medicationForm.name.trim(),
+    dosage: medicationForm.dosage.trim(),
+    instructions: medicationForm.instructions.trim(),
+    scheduledTimes: scheduledTimesText
+      .split(',')
+      .map((time) => time.trim())
+      .filter(Boolean),
+  });
+
+  const resetForms = () => {
+    setTreatmentForm({
+      title: '',
+      description: '',
+      startDate: today,
+      endDate: defaultEndDate,
+      nextAppointment: '',
+    });
+    setMedicationForm(emptyMedication);
+    setScheduledTimesText('08:00');
+  };
+
+  const closePrescriptionPanel = () => {
+    setPrescriptionPatient(null);
+    setPrescriptionMode('treatments');
+    setSelectedTreatmentId(null);
+    resetForms();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="py-10 text-center text-gray-500">
+        Cargando monitoreo de pacientes...
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5">
-          <div className="flex items-center gap-2 text-red-700 mb-2">
-            <AlertTriangle size={20} />
-            <h3 className="font-semibold">Alto Riesgo</h3>
-          </div>
-          <p className="text-3xl font-bold text-red-900">{highRiskPatients.length}</p>
-          <p className="text-sm text-red-600 mt-1">Requieren intervención</p>
+    <div className="space-y-7">
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
         </div>
+      )}
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5">
-          <div className="flex items-center gap-2 text-yellow-700 mb-2">
-            <Clock size={20} />
-            <h3 className="font-semibold">Riesgo Medio</h3>
-          </div>
-          <p className="text-3xl font-bold text-yellow-900">{mediumRiskPatients.length}</p>
-          <p className="text-sm text-yellow-600 mt-1">Monitoreo cercano</p>
-        </div>
-
-        <div className="bg-green-50 border border-green-200 rounded-xl p-5">
-          <div className="flex items-center gap-2 text-green-700 mb-2">
-            <CheckCircle2 size={20} />
-            <h3 className="font-semibold">Bajo Riesgo</h3>
-          </div>
-          <p className="text-3xl font-bold text-green-900">{lowRiskPatients.length}</p>
-          <p className="text-sm text-green-600 mt-1">En buen control</p>
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <RiskSummary
+          level="high"
+          title="Alto Riesgo"
+          count={highRiskPatients.length}
+          description="Requieren intervención"
+        />
+        <RiskSummary
+          level="medium"
+          title="Riesgo Medio"
+          count={mediumRiskPatients.length}
+          description="Monitoreo cercano"
+        />
+        <RiskSummary
+          level="low"
+          title="Bajo Riesgo"
+          count={lowRiskPatients.length}
+          description="En buen control"
+        />
       </div>
 
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Pacientes Críticos</h2>
-        {highRiskPatients.length === 0 && (
-          <p className="text-gray-500 bg-gray-50 p-4 rounded-lg border border-gray-200">No hay pacientes en estado crítico.</p>
-        )}
-        <div className="space-y-4">
-          {highRiskPatients.map((patient) => (
-            <div
-              key={patient.id}
-              className="bg-white rounded-xl border-2 border-red-200 p-5"
-            >
-              <div className="flex items-start gap-4">
-                <img
-                  src={patient.avatar}
-                  alt={patient.name}
-                  className="w-16 h-16 rounded-full"
-                />
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{patient.name}</h3>
-                      <p className="text-sm text-gray-600">{patient.condition}</p>
-                    </div>
-                    <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm ${getRiskColor(patient.riskLevel)}`}>
-                      {getRiskIcon(patient.riskLevel)}
-                      <span>Alto Riesgo</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">Cumplimiento</p>
-                      <p className="text-lg font-semibold text-red-600">{patient.compliance}%</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">Dosis omitidas</p>
-                      <p className="text-lg font-semibold text-red-600">{patient.missedDoses}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">Última actividad</p>
-                      <p className="text-sm font-medium text-gray-900">{patient.lastUpdate}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-center">
-                      <TrendingDown className="text-red-500" size={24} />
-                    </div>
-                  </div>
-
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-                    <p className="text-sm text-red-800">
-                      <strong>⚠️ Alerta:</strong> Este paciente ha omitido múltiples dosis y no ha registrado actividad reciente. Se recomienda intervención inmediata.
-                    </p>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => handleContactPatient(patient.id)}
-                      className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors"
-                    >
-                      Contactar
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedPatientId(patient.id);
-                        setShowPrescriptionModal(true);
-                      }}
-                      className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
-                      title="Recetar Medicamento"
-                    >
-                      <Pill size={18} />
-                      Recetar
-                    </button>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await downloadPatientReport(Number(patient.id));
-                        } catch (error) {
-                          alert('Error al descargar historial');
-                        }
-                      }}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-                      title="Descargar Historial Médico"
-                    >
-                      <FileText size={18} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
-          <h2 className="text-xl font-semibold text-gray-900">Todos los Pacientes</h2>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar por nombre o condición..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full md:w-80 focus:outline-none focus:border-teal-500"
-            />
-          </div>
-        </div>
-        
-        {isLoading ? (
-          <div className="text-center py-8 text-gray-500">Cargando pacientes...</div>
-        ) : filteredPatients.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border border-gray-200">
-            No se encontraron pacientes en la base de datos que coincidan con la búsqueda.
+      <section>
+        <h2 className="mb-4 text-xl font-semibold text-gray-900">
+          Pacientes Críticos
+        </h2>
+        {highRiskPatients.length === 0 ? (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-gray-500">
+            No hay pacientes en estado crítico.
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredPatients.map((patient) => (
-            <div
-              key={patient.id}
-              className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start gap-4">
-                <img
-                  src={patient.avatar}
-                  alt={patient.name}
-                  className="w-14 h-14 rounded-full"
-                />
-                <div className="flex-1">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-900">{patient.name}</h3>
-                      <p className="text-sm text-gray-600">{patient.condition}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedPatientId(patient.id);
-                          setShowPrescriptionModal(true);
-                        }}
-                        className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                        title="Recetar Medicamento"
-                      >
-                        <Pill size={18} />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await downloadPatientReport(Number(patient.id));
-                          } catch (error) {
-                            alert('Error al descargar historial');
-                          }
-                        }}
-                        className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Descargar Historial Médico"
-                      >
-                        <FileText size={18} />
-                      </button>
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRiskColor(patient.riskLevel)}`}>
-                        {getRiskIcon(patient.riskLevel)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6 mt-3 text-sm text-gray-600">
-                    <div>
-                      <span className="font-medium">{patient.compliance}%</span> cumplimiento
-                    </div>
-                    <div>
-                      {patient.missedDoses} dosis omitidas
-                    </div>
-                    <div>
-                      {patient.lastUpdate}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+            {highRiskPatients.map((patient) => (
+              <CriticalPatientCard
+                key={patient.patient.id}
+                data={patient}
+                onPrescribe={() => openPrescriptionPanel(patient)}
+                onShowEffects={() => setEffectsPatient(patient)}
+              />
+            ))}
           </div>
         )}
-      </div>
+      </section>
 
-      {showPrescriptionModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Recetar a Paciente</h3>
-              <button
-                onClick={() => setShowPrescriptionModal(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handlePrescribe} className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Medicamento</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newMedName}
-                  onChange={e => setNewMedName(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
-                  placeholder="Ej. Paracetamol"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Dosis</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newMedDosage}
-                  onChange={e => setNewMedDosage(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
-                  placeholder="Ej. 500mg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Frecuencia</label>
-                <select 
-                  value={newMedFrequency}
-                  onChange={e => setNewMedFrequency(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
-                >
-                  <option value="1 vez al día">1 vez al día</option>
-                  <option value="2 veces al día">2 veces al día</option>
-                  <option value="3 veces al día">3 veces al día</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Total de Pastillas en la Caja</label>
-                <input 
-                  type="number" 
-                  required
-                  min="1"
-                  value={newMedTotalPills}
-                  onChange={e => setNewMedTotalPills(Number(e.target.value))}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
-                />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowPrescriptionModal(false)}
-                  className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
-                >
-                  Enviar Receta
-                </button>
-              </div>
-            </form>
+      <section>
+        <div className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Todos los Pacientes
+          </h2>
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar por nombre o condición..."
+              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 outline-none focus:border-primary md:w-80"
+            />
           </div>
         </div>
+
+        {monitoredPatients.length === 0 ? (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center text-gray-500">
+            No se encontraron pacientes de riesgo medio o bajo.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {monitoredPatients.map((patient) => (
+              <PatientRow
+                key={patient.patient.id}
+                data={patient}
+                onPrescribe={() => openPrescriptionPanel(patient)}
+                onShowEffects={() => setEffectsPatient(patient)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {prescriptionPatient && (
+        <PrescriptionPanel
+          patient={prescriptionPatient}
+          mode={prescriptionMode}
+          selectedTreatmentId={selectedTreatmentId}
+          treatmentForm={treatmentForm}
+          medicationForm={medicationForm}
+          scheduledTimesText={scheduledTimesText}
+          isSaving={isSaving}
+          onClose={closePrescriptionPanel}
+          onModeChange={setPrescriptionMode}
+          onTreatmentSelect={setSelectedTreatmentId}
+          onTreatmentFormChange={setTreatmentForm}
+          onMedicationFormChange={setMedicationForm}
+          onScheduledTimesChange={setScheduledTimesText}
+          onCreateTreatment={handleCreateTreatment}
+          onAddMedication={handleAddMedication}
+        />
+      )}
+
+      {effectsPatient && (
+        <SideEffectsPanel
+          patient={effectsPatient}
+          onClose={() => setEffectsPatient(null)}
+        />
       )}
     </div>
   );
+}
+
+async function buildDoctorPatient(
+  patient: PatientResponse,
+  treatments: TreatmentResponse[],
+): Promise<DoctorPatient> {
+  const relevantTreatments = treatments.filter(
+    (treatment) => treatment.status?.toUpperCase() !== 'CANCELLED',
+  );
+  const progressTreatments = relevantTreatments.filter(
+    (treatment) => treatment.status?.toUpperCase() === 'ACTIVE',
+  );
+  const progressSource =
+    progressTreatments.length > 0 ? progressTreatments : relevantTreatments;
+  const compliance =
+    progressSource.length === 0
+      ? 0
+      : Math.round(
+          progressSource.reduce(
+            (total, treatment) => total + (Number(treatment.progress) || 0),
+            0,
+          ) / progressSource.length,
+        );
+
+  const checklists = await Promise.allSettled(
+    progressTreatments
+      .filter(
+        (treatment) =>
+          (!treatment.startDate || treatment.startDate <= today) &&
+          (!treatment.endDate || treatment.endDate >= today),
+      )
+      .map((treatment) => getTreatmentChecklist(treatment.id, today)),
+  );
+  const missedDoses = checklists
+    .filter(
+      (result): result is PromiseFulfilledResult<TreatmentChecklist> =>
+        result.status === 'fulfilled',
+    )
+    .reduce(
+      (total, result) =>
+        total + (Number(result.value.summary.missedDoses) || 0),
+      0,
+    );
+
+  const sideEffects = treatments.flatMap((treatment) =>
+    (treatment.medications || [])
+      .filter((medication) => medication.sideEffects?.trim())
+      .map((medication) => ({
+        medication: medication.name,
+        effects: medication.sideEffects
+          .split(/[;,]/)
+          .map((effect) => effect.trim())
+          .filter(Boolean),
+      })),
+  );
+
+  return {
+    patient,
+    treatments,
+    compliance,
+    missedDoses,
+    riskLevel: calculateRisk(missedDoses),
+    sideEffects,
+  };
+}
+
+function calculateRisk(missedDoses: number): RiskLevel {
+  if (missedDoses >= 2) return 'high';
+  if (missedDoses === 1) return 'medium';
+  return 'low';
+}
+
+function RiskSummary({
+  level,
+  title,
+  count,
+  description,
+}: {
+  level: RiskLevel;
+  title: string;
+  count: number;
+  description: string;
+}) {
+  const Icon =
+    level === 'high'
+      ? AlertTriangle
+      : level === 'medium'
+        ? Clock
+        : CheckCircle2;
+  const colors = {
+    high: 'border-red-200 bg-red-50 text-red-700',
+    medium: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+    low: 'border-green-200 bg-green-50 text-green-700',
+  }[level];
+
+  return (
+    <div className={`rounded-xl border p-5 ${colors}`}>
+      <div className="mb-2 flex items-center gap-2">
+        <Icon size={20} />
+        <h3 className="font-semibold">{title}</h3>
+      </div>
+      <p className="text-3xl font-bold">{count}</p>
+      <p className="mt-1 text-sm">{description}</p>
+    </div>
+  );
+}
+
+function CriticalPatientCard({
+  data,
+  onPrescribe,
+  onShowEffects,
+}: {
+  data: DoctorPatient;
+  onPrescribe: () => void;
+  onShowEffects: () => void;
+}) {
+  return (
+    <div className="rounded-xl border-2 border-red-200 bg-white p-5">
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <PatientAvatar patient={data.patient} size="large" />
+        <div className="flex-1">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row">
+            <div>
+              <h3 className="font-semibold text-gray-900">
+                {data.patient.name}
+              </h3>
+              <p className="text-sm text-gray-600">
+                {data.patient.medicalHistory || 'Sin historial clínico'}
+              </p>
+            </div>
+            <RiskBadge level="high" />
+          </div>
+
+          <div className="my-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+            <Metric
+              label="Cumplimiento general"
+              value={`${data.compliance}%`}
+              danger
+            />
+            <Metric
+              label="Dosis omitidas hoy"
+              value={String(data.missedDoses)}
+              danger
+            />
+            <Metric
+              label="Tratamientos"
+              value={String(data.treatments.length)}
+            />
+          </div>
+
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <strong>Alerta:</strong> el paciente tiene múltiples dosis
+            programadas sin registrar.
+          </div>
+
+          <PatientActions
+            critical
+            onPrescribe={onPrescribe}
+            onShowEffects={onShowEffects}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PatientRow({
+  data,
+  onPrescribe,
+  onShowEffects,
+}: {
+  data: DoctorPatient;
+  onPrescribe: () => void;
+  onShowEffects: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5 transition hover:shadow-md">
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <PatientAvatar patient={data.patient} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row">
+            <div>
+              <h3 className="font-medium text-gray-900">{data.patient.name}</h3>
+              <p className="text-sm text-gray-600">
+                {data.patient.medicalHistory || 'Sin historial clínico'}
+              </p>
+            </div>
+            <RiskBadge level={data.riskLevel} />
+          </div>
+          <div className="my-3 flex flex-wrap gap-5 text-sm text-gray-600">
+            <span>
+              <strong>{data.compliance}%</strong> cumplimiento general
+            </span>
+            <span>
+              <strong>{data.missedDoses}</strong> dosis omitidas hoy
+            </span>
+            <span>
+              <strong>{data.treatments.length}</strong> tratamientos
+            </span>
+          </div>
+          <PatientActions
+            onPrescribe={onPrescribe}
+            onShowEffects={onShowEffects}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PatientActions({
+  critical = false,
+  onPrescribe,
+  onShowEffects,
+}: {
+  critical?: boolean;
+  onPrescribe: () => void;
+  onShowEffects: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {critical && (
+        <button
+          type="button"
+          disabled
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white opacity-50"
+          title="Disponible próximamente"
+        >
+          <MessageSquare size={17} />
+          Contactar
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onPrescribe}
+        className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
+      >
+        <Pill size={17} />
+        Recetar
+      </button>
+      <button
+        type="button"
+        disabled
+        className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 opacity-50"
+        title="Disponible próximamente"
+      >
+        <FileText size={17} />
+        Historial médico
+      </button>
+      <button
+        type="button"
+        onClick={onShowEffects}
+        className="flex items-center gap-2 rounded-lg border border-amber-300 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50"
+      >
+        <TriangleAlert size={17} />
+        Efectos secundarios
+      </button>
+    </div>
+  );
+}
+
+function PrescriptionPanel({
+  patient,
+  mode,
+  selectedTreatmentId,
+  treatmentForm,
+  medicationForm,
+  scheduledTimesText,
+  isSaving,
+  onClose,
+  onModeChange,
+  onTreatmentSelect,
+  onTreatmentFormChange,
+  onMedicationFormChange,
+  onScheduledTimesChange,
+  onCreateTreatment,
+  onAddMedication,
+}: {
+  patient: DoctorPatient;
+  mode: 'treatments' | 'new-treatment' | 'new-medication';
+  selectedTreatmentId: number | null;
+  treatmentForm: TreatmentFormState;
+  medicationForm: CreateMedicationInput;
+  scheduledTimesText: string;
+  isSaving: boolean;
+  onClose: () => void;
+  onModeChange: (
+    mode: 'treatments' | 'new-treatment' | 'new-medication',
+  ) => void;
+  onTreatmentSelect: (id: number) => void;
+  onTreatmentFormChange: (value: TreatmentFormState) => void;
+  onMedicationFormChange: (value: CreateMedicationInput) => void;
+  onScheduledTimesChange: (value: string) => void;
+  onCreateTreatment: (event: FormEvent) => void;
+  onAddMedication: (event: FormEvent) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900">
+              Tratamientos de {patient.patient.name}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Revisa sus tratamientos o registra una nueva indicación.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"
+          >
+            <X size={21} />
+          </button>
+        </div>
+
+        {mode === 'treatments' && (
+          <div className="space-y-4">
+            {patient.treatments.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 p-7 text-center">
+                <p className="font-medium text-gray-900">
+                  El paciente aún no tiene tratamientos
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Registra el primero para comenzar su seguimiento.
+                </p>
+              </div>
+            ) : (
+              patient.treatments.map((treatment) => (
+                <div
+                  key={treatment.id}
+                  className="rounded-xl border border-gray-200 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-semibold text-gray-900">
+                        {treatment.title}
+                      </h4>
+                      <p className="text-sm text-gray-500">
+                        {treatment.status} · {treatment.progress || 0}% de
+                        progreso
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onTreatmentSelect(treatment.id);
+                        onMedicationFormChange({
+                          ...medicationForm,
+                          startDate: treatment.startDate || today,
+                          endDate: treatment.endDate || defaultEndDate,
+                        });
+                        onModeChange('new-medication');
+                      }}
+                      className="rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-blue-50"
+                    >
+                      Agregar medicamento
+                    </button>
+                  </div>
+                  <div className="mt-3 text-sm text-gray-600">
+                    {(treatment.medications || []).length === 0
+                      ? 'Sin medicamentos'
+                      : treatment.medications
+                          .map((medication) => medication.name)
+                          .join(', ')}
+                  </div>
+                </div>
+              ))
+            )}
+            <button
+              type="button"
+              onClick={() => onModeChange('new-treatment')}
+              className="w-full rounded-lg bg-primary px-4 py-3 font-semibold text-white hover:opacity-90"
+            >
+              Nuevo tratamiento
+            </button>
+          </div>
+        )}
+
+        {mode === 'new-treatment' && (
+          <form onSubmit={onCreateTreatment} className="space-y-4">
+            <TextInput
+              label="Nombre del tratamiento"
+              value={treatmentForm.title}
+              onChange={(title) =>
+                onTreatmentFormChange({ ...treatmentForm, title })
+              }
+              placeholder="Ej. Control de hipertensión"
+            />
+            <TextArea
+              label="Descripción"
+              value={treatmentForm.description}
+              onChange={(description) =>
+                onTreatmentFormChange({ ...treatmentForm, description })
+              }
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DateInput
+                label="Fecha de inicio"
+                value={treatmentForm.startDate}
+                onChange={(startDate) =>
+                  onTreatmentFormChange({ ...treatmentForm, startDate })
+                }
+              />
+              <DateInput
+                label="Fecha de fin"
+                value={treatmentForm.endDate}
+                onChange={(endDate) =>
+                  onTreatmentFormChange({ ...treatmentForm, endDate })
+                }
+              />
+            </div>
+            <DateInput
+              label="Próxima cita (opcional)"
+              value={treatmentForm.nextAppointment}
+              required={false}
+              onChange={(nextAppointment) =>
+                onTreatmentFormChange({
+                  ...treatmentForm,
+                  nextAppointment,
+                })
+              }
+            />
+            <MedicationFields
+              form={medicationForm}
+              scheduledTimesText={scheduledTimesText}
+              onChange={onMedicationFormChange}
+              onScheduledTimesChange={onScheduledTimesChange}
+            />
+            <FormActions
+              isSaving={isSaving}
+              onCancel={() => onModeChange('treatments')}
+              submitLabel="Crear tratamiento"
+            />
+          </form>
+        )}
+
+        {mode === 'new-medication' && selectedTreatmentId && (
+          <form onSubmit={onAddMedication} className="space-y-4">
+            <MedicationFields
+              form={medicationForm}
+              scheduledTimesText={scheduledTimesText}
+              onChange={onMedicationFormChange}
+              onScheduledTimesChange={onScheduledTimesChange}
+            />
+            <FormActions
+              isSaving={isSaving}
+              onCancel={() => onModeChange('treatments')}
+              submitLabel="Agregar medicamento"
+            />
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MedicationFields({
+  form,
+  scheduledTimesText,
+  onChange,
+  onScheduledTimesChange,
+}: {
+  form: CreateMedicationInput;
+  scheduledTimesText: string;
+  onChange: (value: CreateMedicationInput) => void;
+  onScheduledTimesChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-4 rounded-xl bg-gray-50 p-4">
+      <h4 className="font-semibold text-gray-900">Medicamento</h4>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextInput
+          label="Nombre"
+          value={form.name}
+          onChange={(name) => onChange({ ...form, name })}
+          placeholder="Ej. Losartán"
+        />
+        <TextInput
+          label="Dosis"
+          value={form.dosage}
+          onChange={(dosage) => onChange({ ...form, dosage })}
+          placeholder="Ej. 50 mg"
+        />
+        <TextInput
+          label="Frecuencia"
+          value={form.frequency}
+          onChange={(frequency) => onChange({ ...form, frequency })}
+          placeholder="Ej. DIARIO"
+        />
+        <TextInput
+          label="Horarios separados por coma"
+          value={scheduledTimesText}
+          onChange={onScheduledTimesChange}
+          placeholder="08:00, 20:00"
+        />
+        <DateInput
+          label="Inicio"
+          value={form.startDate}
+          onChange={(startDate) => onChange({ ...form, startDate })}
+        />
+        <DateInput
+          label="Fin"
+          value={form.endDate}
+          onChange={(endDate) => onChange({ ...form, endDate })}
+        />
+      </div>
+      <TextArea
+        label="Indicaciones"
+        value={form.instructions}
+        onChange={(instructions) => onChange({ ...form, instructions })}
+      />
+    </div>
+  );
+}
+
+function SideEffectsPanel({
+  patient,
+  onClose,
+}: {
+  patient: DoctorPatient;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-5 flex items-start justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Efectos secundarios
+            </h3>
+            <p className="text-sm text-gray-500">{patient.patient.name}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        {patient.sideEffects.length === 0 ? (
+          <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-500">
+            El paciente no ha registrado efectos secundarios.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {patient.sideEffects.map((item, index) => (
+              <div
+                key={`${item.medication}-${index}`}
+                className="rounded-lg border border-amber-200 bg-amber-50 p-4"
+              >
+                <p className="font-medium text-amber-900">{item.medication}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {item.effects.map((effect) => (
+                    <span
+                      key={effect}
+                      className="rounded-full bg-white px-3 py-1 text-sm text-amber-800"
+                    >
+                      {effect}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PatientAvatar({
+  patient,
+  size = 'normal',
+}: {
+  patient: PatientResponse;
+  size?: 'normal' | 'large';
+}) {
+  return (
+    <img
+      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+        patient.name || 'Paciente',
+      )}&background=E0F2FE&color=0369A1`}
+      alt={patient.name}
+      className={`${size === 'large' ? 'h-16 w-16' : 'h-14 w-14'} rounded-full`}
+    />
+  );
+}
+
+function RiskBadge({ level }: { level: RiskLevel }) {
+  const config = {
+    high: {
+      label: 'Alto riesgo',
+      classes: 'border-red-200 bg-red-100 text-red-700',
+      Icon: AlertTriangle,
+    },
+    medium: {
+      label: 'Riesgo medio',
+      classes: 'border-yellow-200 bg-yellow-100 text-yellow-700',
+      Icon: Clock,
+    },
+    low: {
+      label: 'Bajo riesgo',
+      classes: 'border-green-200 bg-green-100 text-green-700',
+      Icon: CheckCircle2,
+    },
+  }[level];
+  return (
+    <span
+      className={`flex w-fit items-center gap-1 rounded-full border px-3 py-1 text-sm ${config.classes}`}
+    >
+      <config.Icon size={15} />
+      {config.label}
+    </span>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  danger = false,
+}: {
+  label: string;
+  value: string;
+  danger?: boolean;
+}) {
+  return (
+    <div className="rounded-lg bg-gray-50 p-3">
+      <p className="mb-1 text-xs text-gray-600">{label}</p>
+      <p
+        className={`text-lg font-semibold ${
+          danger ? 'text-red-600' : 'text-gray-900'
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function TextInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-gray-700">
+        {label}
+      </span>
+      <input
+        required
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-gray-300 px-3 py-2.5 outline-none focus:border-primary"
+      />
+    </label>
+  );
+}
+
+function TextArea({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-gray-700">
+        {label}
+      </span>
+      <textarea
+        required
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-20 w-full rounded-lg border border-gray-300 px-3 py-2.5 outline-none focus:border-primary"
+      />
+    </label>
+  );
+}
+
+function DateInput({
+  label,
+  value,
+  onChange,
+  required = true,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-gray-700">
+        {label}
+      </span>
+      <input
+        type="date"
+        required={required}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-lg border border-gray-300 px-3 py-2.5 outline-none focus:border-primary"
+      />
+    </label>
+  );
+}
+
+function FormActions({
+  isSaving,
+  onCancel,
+  submitLabel,
+}: {
+  isSaving: boolean;
+  onCancel: () => void;
+  submitLabel: string;
+}) {
+  return (
+    <div className="flex gap-3 pt-2">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-gray-700 hover:bg-gray-50"
+      >
+        Volver
+      </button>
+      <button
+        type="submit"
+        disabled={isSaving}
+        className="flex-1 rounded-lg bg-primary px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-60"
+      >
+        {isSaving ? 'Guardando...' : submitLabel}
+      </button>
+    </div>
+  );
+}
+
+function getLocalDate() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(dateValue: string, days: number) {
+  const [year, month, day] = dateValue.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return getDateValue(date);
+}
+
+function getDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

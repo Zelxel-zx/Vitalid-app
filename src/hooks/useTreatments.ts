@@ -1,21 +1,28 @@
-import { useState, useEffect } from 'react';
-import { Treatment } from '../types';
-import { treatmentService } from '../services/treatmentService';
+import { useCallback, useState, useEffect } from 'react';
+import { getMyTreatments, TreatmentResponse } from '../services/treatmentService';
 
 export function useTreatments() {
-  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  const [treatments, setTreatments] = useState<TreatmentResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadTreatments = useCallback(async () => {
     try {
-      const data = treatmentService.getAllTreatments();
+      setError(null);
+      const data = await getMyTreatments();
       setTreatments(data);
-      setLoading(false);
     } catch (err) {
       console.error('Error loading treatments:', err);
+      setError(err instanceof Error ? err.message : 'Error al cargar tratamientos');
+      setTreatments([]);
+    } finally {
       setLoading(false);
     }
   }, []);
 
-  return { treatments, loading };
+  useEffect(() => {
+    loadTreatments();
+  }, [loadTreatments]);
+
+  return { treatments, loading, error, refresh: loadTreatments };
 }

@@ -1,4 +1,5 @@
 import { getJson, postJson, putJson } from './apiClient';
+import { getPatientByUserId } from './patientService';
 
 export interface AppointmentResponse {
   id: number;
@@ -9,6 +10,7 @@ export interface AppointmentResponse {
   date: string;
   time: string;
   reason: string;
+  appointmentType: 'IN_PERSON' | 'VIDEO_CALL';
   status: string;
 }
 
@@ -18,6 +20,7 @@ export interface AppointmentRequest {
   date: string;
   time: string;
   reason: string;
+  appointmentType: 'IN_PERSON' | 'VIDEO_CALL';
 }
 
 export interface RescheduleRequest {
@@ -29,8 +32,9 @@ export async function createAppointment(request: AppointmentRequest): Promise<Ap
   return postJson<AppointmentResponse>('/appointments', request);
 }
 
-export async function getAppointmentsForPatient(patientId: number): Promise<AppointmentResponse[]> {
-  return getJson<AppointmentResponse[]>(`/appointments/patient/${patientId}`);
+export async function getAppointmentsForPatient(userId: number): Promise<AppointmentResponse[]> {
+  const patient = await getPatientByUserId(userId);
+  return getJson<AppointmentResponse[]>(`/appointments/patient/${patient.id}`);
 }
 
 export async function getAppointmentsForDoctor(doctorId: number): Promise<AppointmentResponse[]> {

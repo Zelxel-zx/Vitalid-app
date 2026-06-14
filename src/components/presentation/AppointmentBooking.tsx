@@ -1,9 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, Video, MapPin, Filter, ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { DoctorSummary, getAllDoctors, getDoctorAvailability } from '../../services/doctorService';
+import { DoctorSummary, formatDoctorName, getAllDoctors, getDoctorAvailability } from '../../services/doctorService';
 import { createAppointment } from '../../services/appointmentService';
+import { getPatientByUserId } from '../../services/patientService';
 
-export function AppointmentBooking() {
+interface AppointmentBookingProps {
+  initialDoctorId?: number | null;
+  initialDate?: string | null;
+}
+
+export function AppointmentBooking({
+  initialDoctorId,
+  initialDate,
+}: AppointmentBookingProps) {
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const [doctors, setDoctors] = useState<DoctorSummary[]>([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,13 +25,32 @@ export function AppointmentBooking() {
   
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [occupiedSlots, setOccupiedSlots] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [consultationType, setConsultationType] = useState<'presencial' | 'videollamada'>('presencial');
   const [isBooking, setIsBooking] = useState(false);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   useEffect(() => {
     loadDoctors();
   }, []);
+
+  useEffect(() => {
+    if (!initialDoctorId || doctors.length === 0) return;
+
+    const doctor = doctors.find((item) => item.id === initialDoctorId);
+    if (doctor) setSelectedDoctor(doctor);
+  }, [doctors, initialDoctorId]);
+
+  useEffect(() => {
+    if (!initialDate) return;
+
+    const [year, month, day] = initialDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    date.setHours(0, 0, 0, 0);
+    if (date >= today) setSelectedDate(date);
+  }, [initialDate]);
 
   useEffect(() => {
     if (selectedDoctor) {
@@ -41,14 +70,19 @@ export function AppointmentBooking() {
   const loadAvailability = async () => {
     if (!selectedDoctor) return;
     try {
+      setIsLoadingAvailability(true);
       // Format date as YYYY-MM-DD
       const dateStr = selectedDate.toLocaleDateString('en-CA');
       const response = await getDoctorAvailability(selectedDoctor.id, dateStr);
       setAvailableSlots(response.availableSlots);
+      setOccupiedSlots(response.occupiedSlots || []);
       setSelectedTime(null);
     } catch (err) {
       console.error('Error loading availability:', err);
       setAvailableSlots([]);
+      setOccupiedSlots([]);
+    } finally {
+      setIsLoadingAvailability(false);
     }
   };
 
@@ -64,6 +98,34 @@ export function AppointmentBooking() {
     return date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
+  const formatDateInput = (date: Date) => {
+    return date.toLocaleDateString('en-CA');
+  };
+
+  const handleDateSelection = (dateValue: string) => {
+    if (!dateValue) return;
+
+    const [year, month, day] = dateValue.split('-').map(Number);
+    const newDate = new Date(year, month - 1, day);
+    newDate.setHours(0, 0, 0, 0);
+
+    if (newDate >= today) {
+      setSelectedDate(newDate);
+    }
+  };
+
+  const openDatePicker = () => {
+    const dateInput = dateInputRef.current;
+    if (!dateInput) return;
+
+    if ('showPicker' in dateInput) {
+      dateInput.showPicker();
+    } else {
+      dateInput.focus();
+      dateInput.click();
+    }
+  };
+
   const changeDate = (days: number) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
@@ -77,22 +139,30 @@ export function AppointmentBooking() {
     if (selectedDoctor && selectedTime) {
       try {
         setIsBooking(true);
-        const patientId = Number(localStorage.getItem('authUserId'));
+        setBookingError(null);
+        const userId = Number(localStorage.getItem('authUserId'));
+        const patient = await getPatientByUserId(userId);
         
         await createAppointment({
-          patientId,
+          patientId: patient.id,
           doctorId: selectedDoctor.id,
           date: selectedDate.toLocaleDateString('en-CA'),
           time: selectedTime,
-          reason: `Consulta ${consultationType}`,
+          reason: 'Consulta médica',
+          appointmentType:
+            consultationType === 'presencial' ? 'IN_PERSON' : 'VIDEO_CALL',
         });
         
-        alert(`¡Cita reservada con ${selectedDoctor.name} el ${formatDate(selectedDate)} a las ${selectedTime}!`);
+        alert(`¡Cita reservada con ${formatDoctorName(selectedDoctor.name)} el ${formatDate(selectedDate)} a las ${selectedTime}!`);
         setSelectedDoctor(null);
         setSelectedTime(null);
       } catch (err) {
         console.error('Error booking appointment:', err);
-        alert('Error al reservar la cita. Por favor intenta de nuevo.');
+        setBookingError(
+          err instanceof Error
+            ? err.message
+            : 'Error al reservar la cita. Por favor intenta de nuevo.',
+        );
       } finally {
         setIsBooking(false);
       }
@@ -113,15 +183,15 @@ export function AppointmentBooking() {
           Volver a la lista
         </button>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white rounded-xl border border-primary p-6">
           <div className="flex items-start gap-4 mb-6">
             <img
               src={selectedDoctor.avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
-              alt={selectedDoctor.name}
+              alt={formatDoctorName(selectedDoctor.name)}
               className="w-20 h-20 rounded-full object-cover"
             />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{selectedDoctor.name}</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{formatDoctorName(selectedDoctor.name)}</h2>
               <p className="text-gray-600">{selectedDoctor.specialty}</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-sm text-gray-600">{selectedDoctor.experienceYears || 0} años de experiencia</span>
@@ -155,6 +225,15 @@ export function AppointmentBooking() {
                 <p className="font-medium text-gray-900">Videollamada</p>
               </button>
             </div>
+            {consultationType === 'presencial' && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-sm text-gray-700">
+                <MapPin className="mt-0.5 shrink-0 text-primary" size={17} />
+                <span>
+                  {selectedDoctor.medicalCenterAddress ||
+                    'Dirección del centro médico no disponible'}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="mb-6">
@@ -164,7 +243,30 @@ export function AppointmentBooking() {
                 <button onClick={() => changeDate(-1)} className="p-2 hover:bg-gray-200 rounded">
                   <ChevronLeft size={20} />
                 </button>
-                <span className="font-medium capitalize">{formatDate(selectedDate)}</span>
+                <div className="relative text-center">
+                  <button
+                    type="button"
+                    onClick={openDatePicker}
+                    className="rounded-lg px-3 py-2 text-center transition-colors hover:bg-white"
+                  >
+                    <span className="flex items-center justify-center gap-2 font-medium capitalize text-gray-900">
+                      <Calendar size={18} className="text-primary" />
+                      {formatDate(selectedDate)}
+                    </span>
+                    <span className="mt-1 block text-xs text-primary">
+                      Haz clic para elegir otra fecha
+                    </span>
+                  </button>
+                  <input
+                    ref={dateInputRef}
+                    type="date"
+                    value={formatDateInput(selectedDate)}
+                    min={formatDateInput(today)}
+                    onChange={(event) => handleDateSelection(event.target.value)}
+                    className="pointer-events-none absolute h-px w-px opacity-0"
+                    aria-label="Elegir fecha de la cita"
+                  />
+                </div>
                 <button onClick={() => changeDate(1)} className="p-2 hover:bg-gray-200 rounded">
                   <ChevronRight size={20} />
                 </button>
@@ -174,26 +276,49 @@ export function AppointmentBooking() {
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-3">Horarios disponibles</label>
-            {availableSlots.length === 0 ? (
+            {isLoadingAvailability ? (
+              <p className="text-gray-500 text-sm">Consultando horarios...</p>
+            ) : availableSlots.length === 0 && occupiedSlots.length === 0 ? (
               <p className="text-gray-500 text-sm">No hay horarios disponibles para esta fecha.</p>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {availableSlots.map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => setSelectedTime(time)}
-                    className={`py-2 rounded-lg text-sm font-medium transition-all ${
-                        selectedTime === time
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-primary'
-                    }`}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {[...availableSlots, ...occupiedSlots]
+                    .sort((first, second) => first.localeCompare(second))
+                    .map((time) => {
+                      const isOccupied = occupiedSlots.includes(time);
+                      return (
+                        <button
+                          key={time}
+                          onClick={() => !isOccupied && setSelectedTime(time)}
+                          disabled={isOccupied}
+                          className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                            isOccupied
+                              ? 'cursor-not-allowed border border-red-200 bg-red-50 text-red-600'
+                              : selectedTime === time
+                                ? 'bg-primary text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-primary'
+                          }`}
+                        >
+                          {time}
+                        </button>
+                      );
+                    })}
+                </div>
+                {occupiedSlots.length > 0 && (
+                  <p className="mt-3 text-xs text-red-600">
+                    Los horarios en rojo ya están ocupados.
+                  </p>
+                )}
+              </>
             )}
           </div>
+
+          {bookingError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {bookingError}
+            </div>
+          )}
 
           <button
             onClick={handleBookAppointment}
@@ -247,17 +372,17 @@ export function AppointmentBooking() {
           filteredDoctors.map((doctor) => (
             <div
               key={doctor.id}
-              className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
+              className="rounded-xl border border-primary bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
                   <img
                     src={doctor.avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
-                    alt={doctor.name}
+                    alt={formatDoctorName(doctor.name)}
                     className="w-16 h-16 rounded-full object-cover"
                   />
                   <div>
-                    <h3 className="font-semibold text-gray-900">{doctor.name}</h3>
+                    <h3 className="font-semibold text-gray-900">{formatDoctorName(doctor.name)}</h3>
                     <p className="text-sm text-gray-600">{doctor.specialty}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="text-sm text-gray-600">{doctor.experienceYears || 0} años exp.</span>

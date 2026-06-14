@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Calendar, MapPin, Video, FileText, Edit2 } from 'lucide-react';
 import { getAppointmentsForPatient, getAppointmentsForDoctor, AppointmentResponse } from '../../services/appointmentService';
-import { getDoctorById, DoctorSummary } from '../../services/doctorService';
+import { getDoctorById } from '../../services/doctorService';
+import { getMyTreatments } from '../../services/treatmentService';
 
 interface EnrichedAppointment extends AppointmentResponse {
   doctorAvatar?: string;
   specialty?: string;
+  treatmentFollowUp?: boolean;
+  treatmentTitle?: string;
 }
 
-export function AppointmentHistory() {
+interface AppointmentHistoryProps {
+  onScheduleTreatmentFollowUp?: (doctorId: number, date: string) => void;
+}
+
+export function AppointmentHistory({
+  onScheduleTreatmentFollowUp,
+}: AppointmentHistoryProps) {
   const [appointments, setAppointments] = useState<EnrichedAppointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -23,11 +32,43 @@ export function AppointmentHistory() {
       const userType = localStorage.getItem('authUserType');
       if (!userId) return;
 
-      let data: AppointmentResponse[] = [];
+      let data: EnrichedAppointment[] = [];
       if (userType === 'doctor') {
         data = await getAppointmentsForDoctor(userId);
       } else {
         data = await getAppointmentsForPatient(userId);
+
+        const treatments = await getMyTreatments().catch((error) => {
+          console.error('Error loading treatment follow-ups:', error);
+          return [];
+        });
+        const treatmentAppointments: EnrichedAppointment[] = treatments
+          .filter(
+            (treatment) =>
+              treatment.nextAppointment &&
+              !data.some(
+                (appointment) =>
+                  appointment.doctorId === treatment.doctorId &&
+                  appointment.date === treatment.nextAppointment &&
+                  appointment.status?.toUpperCase() !== 'CANCELLED',
+              ),
+          )
+          .map((treatment) => ({
+            id: -treatment.id,
+            patientId: treatment.patientId,
+            doctorId: treatment.doctorId,
+            patientName: treatment.patientName,
+            doctorName: treatment.doctorName,
+            date: treatment.nextAppointment,
+            time: '',
+            reason: `Seguimiento: ${treatment.title}`,
+            appointmentType: 'IN_PERSON',
+            status: 'SCHEDULED',
+            treatmentFollowUp: true,
+            treatmentTitle: treatment.title,
+          }));
+
+        data = [...data, ...treatmentAppointments];
       }
       
       if (userType === 'doctor') {
@@ -58,8 +99,74 @@ export function AppointmentHistory() {
     }
   };
 
-  const upcomingAppointments = appointments.filter(a => a.status === 'SCHEDULED');
-  const pastAppointments = appointments.filter(a => a.status === 'COMPLETED' || a.status === 'CANCELLED');
+  const getAppointmentDateTime = (appointment: EnrichedAppointment) =>
+    new Date(
+      `${appointment.date}T${
+        appointment.treatmentFollowUp ? '12:00' : appointment.time
+      }`,
+    );
+
+  const getAppointmentEndTime = (appointment: EnrichedAppointment) => {
+    if (appointment.treatmentFollowUp) {
+      return new Date(`${appointment.date}T23:59:59`);
+    }
+    const endTime = getAppointmentDateTime(appointment);
+    endTime.setMinutes(endTime.getMinutes() + 30);
+    return endTime;
+  };
+
+  const now = new Date();
+  const upcomingAppointments = appointments
+    .filter(
+      (appointment) =>
+        appointment.status?.toUpperCase() === 'SCHEDULED' &&
+        getAppointmentEndTime(appointment) > now,
+    )
+    .sort(
+      (first, second) =>
+        getAppointmentDateTime(first).getTime() -
+        getAppointmentDateTime(second).getTime(),
+    );
+
+  const pastAppointments = appointments
+    .filter((appointment) => {
+      const status = appointment.status?.toUpperCase();
+      return (
+        status === 'COMPLETED' ||
+        status === 'CANCELLED' ||
+        getAppointmentEndTime(appointment) <= now
+      );
+    })
+    .sort(
+      (first, second) =>
+        getAppointmentDateTime(second).getTime() -
+        getAppointmentDateTime(first).getTime(),
+    );
+
+  const getPastAppointmentStatus = (appointment: EnrichedAppointment) => {
+    if (appointment.treatmentFollowUp) {
+      return {
+        label: 'Fecha vencida',
+        className: 'bg-amber-100 text-amber-700',
+      };
+    }
+
+    const status = appointment.status?.toUpperCase();
+    if (status === 'CANCELLED') {
+      return {
+        label: 'Cancelada',
+        className: 'bg-red-100 text-red-700',
+      };
+    }
+
+    return {
+      label: 'Finalizada',
+      className: 'bg-green-100 text-green-700',
+    };
+  };
+
+  const isVideoCall = (appointment: EnrichedAppointment) =>
+    appointment.appointmentType === 'VIDEO_CALL';
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString + 'T00:00:00');
@@ -89,7 +196,7 @@ export function AppointmentHistory() {
             {upcomingAppointments.map((appointment) => (
               <div
                 key={appointment.id}
-                className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
+                className="bg-white rounded-xl border border-primary p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start gap-4">
                   {localStorage.getItem('authUserType') !== 'doctor' && (
@@ -111,7 +218,8 @@ export function AppointmentHistory() {
                            </>
                         )}
                       </div>
-                      {localStorage.getItem('authUserType') !== 'doctor' && (
+                      {localStorage.getItem('authUserType') !== 'doctor' &&
+                        !appointment.treatmentFollowUp && (
                         <button
                           onClick={() => handleReschedule(appointment.id)}
                           className="flex items-center gap-1 text-sm text-primary hover:opacity-80"
@@ -129,10 +237,19 @@ export function AppointmentHistory() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar size={16} />
-                        <span>{appointment.time}</span>
+                        <span>
+                          {appointment.treatmentFollowUp
+                            ? 'Hora por confirmar'
+                            : appointment.time}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        {appointment.reason.toLowerCase().includes('video') ? (
+                        {appointment.treatmentFollowUp ? (
+                          <>
+                            <FileText size={16} />
+                            <span>Seguimiento de tratamiento</span>
+                          </>
+                        ) : isVideoCall(appointment) ? (
                           <>
                             <Video size={16} />
                             <span>Videollamada</span>
@@ -146,7 +263,29 @@ export function AppointmentHistory() {
                       </div>
                     </div>
 
-                    {appointment.reason.toLowerCase().includes('video') && (
+                    {appointment.treatmentFollowUp && (
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-gray-600">
+                          {appointment.treatmentTitle}
+                        </p>
+                        {onScheduleTreatmentFollowUp && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onScheduleTreatmentFollowUp(
+                                appointment.doctorId,
+                                appointment.date,
+                              )
+                            }
+                            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                          >
+                            Agendar cita
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {isVideoCall(appointment) && (
                       <button className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors text-sm">
                         Unirse a la videollamada
                       </button>
@@ -165,11 +304,13 @@ export function AppointmentHistory() {
           <p className="text-gray-500 text-sm">No hay consultas pasadas registradas.</p>
         ) : (
           <div className="space-y-4">
-            {pastAppointments.map((appointment) => (
-              <div
-                key={appointment.id}
-                className="bg-white rounded-xl border border-gray-200 p-5"
-              >
+            {pastAppointments.map((appointment) => {
+              const pastStatus = getPastAppointmentStatus(appointment);
+              return (
+                <div
+                  key={appointment.id}
+                  className="bg-white rounded-xl border border-primary p-5"
+                >
                 <div className="flex items-start gap-4">
                   {localStorage.getItem('authUserType') !== 'doctor' && (
                     <img
@@ -190,10 +331,8 @@ export function AppointmentHistory() {
                            </>
                         )}
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        appointment.status === 'COMPLETED' ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'
-                      }`}>
-                        {appointment.status === 'COMPLETED' ? 'Completada' : 'Cancelada'}
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${pastStatus.className}`}>
+                        {pastStatus.label}
                       </span>
                     </div>
 
@@ -203,7 +342,12 @@ export function AppointmentHistory() {
                         <span className="capitalize">{formatDate(appointment.date)}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        {appointment.reason.toLowerCase().includes('video') ? (
+                        {appointment.treatmentFollowUp ? (
+                          <>
+                            <FileText size={16} />
+                            <span>Seguimiento de tratamiento</span>
+                          </>
+                        ) : isVideoCall(appointment) ? (
                           <>
                             <Video size={16} />
                             <span>Videollamada</span>
@@ -218,8 +362,9 @@ export function AppointmentHistory() {
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
