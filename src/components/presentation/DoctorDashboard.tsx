@@ -31,6 +31,7 @@ interface DoctorPatient {
   patient: PatientResponse;
   treatments: TreatmentResponse[];
   compliance: number;
+  takenDoses: number;
   missedDoses: number;
   riskLevel: RiskLevel;
   sideEffects: Array<{
@@ -61,9 +62,14 @@ const emptyMedication: CreateMedicationInput = {
   scheduledTimes: ['08:00'],
 };
 
-export function DoctorDashboard() {
+export function DoctorDashboard({
+  mode = 'overview',
+}: {
+  mode?: 'overview' | 'patients';
+}) {
   const [patients, setPatients] = useState<DoctorPatient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [riskFilter, setRiskFilter] = useState<'all' | RiskLevel>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prescriptionPatient, setPrescriptionPatient] =
@@ -94,24 +100,29 @@ export function DoctorDashboard() {
   const [emailBody, setEmailBody] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
-  const loadPatients = async () => {
+  const loadPatients = async (showLoading = true) => {
     try {
-      setIsLoading(true);
+      if (showLoading) setIsLoading(true);
       setError(null);
       const [patientData, treatmentData] = await Promise.all([
         getAllPatients(),
         getMyTreatments(),
       ]);
+      const assignedPatientIds = new Set(
+        treatmentData.map((treatment) => treatment.patientId),
+      );
 
       const mapped = await Promise.all(
-        patientData.map((patient) =>
-          buildDoctorPatient(
-            patient,
-            treatmentData.filter(
-              (treatment) => treatment.patientId === patient.id,
+        patientData
+          .filter((patient) => assignedPatientIds.has(patient.id))
+          .map((patient) =>
+            buildDoctorPatient(
+              patient,
+              treatmentData.filter(
+                (treatment) => treatment.patientId === patient.id,
+              ),
             ),
           ),
-        ),
       );
       setPatients(mapped);
     } catch (err) {
@@ -122,23 +133,39 @@ export function DoctorDashboard() {
           : 'No se pudo cargar el monitoreo de pacientes.',
       );
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     loadPatients();
+
+    const refreshPatients = () => loadPatients(false);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshPatients();
+    };
+    const intervalId = window.setInterval(refreshPatients, 15000);
+
+    window.addEventListener('focus', refreshPatients);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshPatients);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const filteredPatients = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return patients;
     return patients.filter(
-      ({ patient }) =>
-        patient.name.toLowerCase().includes(term) ||
-        patient.medicalHistory?.toLowerCase().includes(term),
+      ({ patient, riskLevel }) =>
+        (riskFilter === 'all' || riskLevel === riskFilter) &&
+        (!term ||
+          patient.name.toLowerCase().includes(term) ||
+          patient.medicalHistory?.toLowerCase().includes(term)),
     );
-  }, [patients, searchTerm]);
+  }, [patients, riskFilter, searchTerm]);
 
   const highRiskPatients = patients.filter(
     (patient) => patient.riskLevel === 'high',
@@ -244,6 +271,89 @@ export function DoctorDashboard() {
     return (
       <div className="py-10 text-center text-gray-500">
         Cargando monitoreo de pacientes...
+      </div>
+    );
+  }
+
+  if (mode === 'patients') {
+    return (
+      <div className="space-y-6">
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3 rounded-xl border border-primary bg-white p-4 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar por nombre o condición..."
+              className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-4 outline-none focus:border-primary"
+            />
+          </div>
+          <select
+            value={riskFilter}
+            onChange={(event) =>
+              setRiskFilter(event.target.value as 'all' | RiskLevel)
+            }
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 outline-none focus:border-primary"
+          >
+            <option value="all">Todos los riesgos</option>
+            <option value="high">Alto riesgo</option>
+            <option value="medium">Riesgo medio</option>
+            <option value="low">Bajo riesgo</option>
+          </select>
+        </div>
+
+        {filteredPatients.length === 0 ? (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-10 text-center text-gray-500">
+            No se encontraron pacientes.
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {filteredPatients.map((patient) => (
+              <DetailedPatientCard
+                key={patient.patient.id}
+                data={patient}
+                onPrescribe={() => openPrescriptionPanel(patient)}
+                onShowEffects={() => setEffectsPatient(patient)}
+              />
+            ))}
+          </div>
+        )}
+
+        {prescriptionPatient && (
+          <PrescriptionPanel
+            patient={prescriptionPatient}
+            mode={prescriptionMode}
+            selectedTreatmentId={selectedTreatmentId}
+            treatmentForm={treatmentForm}
+            medicationForm={medicationForm}
+            scheduledTimesText={scheduledTimesText}
+            isSaving={isSaving}
+            onClose={closePrescriptionPanel}
+            onModeChange={setPrescriptionMode}
+            onTreatmentSelect={setSelectedTreatmentId}
+            onTreatmentFormChange={setTreatmentForm}
+            onMedicationFormChange={setMedicationForm}
+            onScheduledTimesChange={setScheduledTimesText}
+            onCreateTreatment={handleCreateTreatment}
+            onAddMedication={handleAddMedication}
+          />
+        )}
+
+        {effectsPatient && (
+          <SideEffectsPanel
+            patient={effectsPatient}
+            onClose={() => setEffectsPatient(null)}
+          />
+        )}
       </div>
     );
   }
@@ -442,6 +552,10 @@ export function DoctorDashboard() {
   );
 }
 
+export function DoctorPatientsView() {
+  return <DoctorDashboard mode="patients" />;
+}
+
 async function buildDoctorPatient(
   patient: PatientResponse,
   treatments: TreatmentResponse[],
@@ -483,6 +597,16 @@ async function buildDoctorPatient(
         total + (Number(result.value.summary.missedDoses) || 0),
       0,
     );
+  const takenDoses = checklists
+    .filter(
+      (result): result is PromiseFulfilledResult<TreatmentChecklist> =>
+        result.status === 'fulfilled',
+    )
+    .reduce(
+      (total, result) =>
+        total + (Number(result.value.summary.takenDoses) || 0),
+      0,
+    );
 
   const sideEffects = treatments.flatMap((treatment) =>
     (treatment.medications || [])
@@ -500,6 +624,7 @@ async function buildDoctorPatient(
     patient,
     treatments,
     compliance,
+    takenDoses,
     missedDoses,
     riskLevel: calculateRisk(missedDoses),
     sideEffects,
@@ -530,9 +655,9 @@ function RiskSummary({
         ? Clock
         : CheckCircle2;
   const colors = {
-    high: 'border-red-200 bg-red-50 text-red-700',
-    medium: 'border-yellow-200 bg-yellow-50 text-yellow-700',
-    low: 'border-green-200 bg-green-50 text-green-700',
+    high: 'border-red-400 bg-red-50 text-red-700',
+    medium: 'border-yellow-400 bg-yellow-50 text-yellow-700',
+    low: 'border-green-400 bg-green-50 text-green-700',
   }[level];
 
   return (
@@ -559,7 +684,7 @@ function CriticalPatientCard({
   onContact?: () => void;
 }) {
   return (
-    <div className="rounded-xl border-2 border-red-200 bg-white p-5">
+    <div className="rounded-xl border-2 border-red-400 bg-white p-5">
       <div className="flex flex-col gap-4 sm:flex-row">
         <PatientAvatar patient={data.patient} size="large" />
         <div className="flex-1">
@@ -575,11 +700,15 @@ function CriticalPatientCard({
             <RiskBadge level="high" />
           </div>
 
-          <div className="my-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="my-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <Metric
               label="Cumplimiento general"
               value={`${data.compliance}%`}
               danger
+            />
+            <Metric
+              label="Dosis tomadas hoy"
+              value={String(data.takenDoses)}
             />
             <Metric
               label="Dosis omitidas hoy"
@@ -619,7 +748,7 @@ function PatientRow({
   onShowEffects: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 transition hover:shadow-md">
+    <div className="rounded-xl border border-primary bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
       <div className="flex flex-col gap-4 sm:flex-row">
         <PatientAvatar patient={data.patient} />
         <div className="min-w-0 flex-1">
@@ -637,6 +766,9 @@ function PatientRow({
               <strong>{data.compliance}%</strong> cumplimiento general
             </span>
             <span>
+              <strong>{data.takenDoses}</strong> dosis tomadas hoy
+            </span>
+            <span>
               <strong>{data.missedDoses}</strong> dosis omitidas hoy
             </span>
             <span>
@@ -650,6 +782,157 @@ function PatientRow({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function DetailedPatientCard({
+  data,
+  onPrescribe,
+  onShowEffects,
+}: {
+  data: DoctorPatient;
+  onPrescribe: () => void;
+  onShowEffects: () => void;
+}) {
+  const activeTreatments = data.treatments.filter(
+    (treatment) => treatment.status?.toUpperCase() === 'ACTIVE',
+  );
+  const completedTreatments = data.treatments.filter(
+    (treatment) => treatment.status?.toUpperCase() === 'COMPLETED',
+  );
+  const nextAppointment = data.treatments
+    .map((treatment) => treatment.nextAppointment)
+    .filter((date): date is string => Boolean(date && date >= today))
+    .sort()[0];
+
+  return (
+    <article className="rounded-xl border border-primary bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="flex flex-col gap-5 lg:flex-row">
+        <PatientAvatar patient={data.patient} size="large" />
+        <div className="min-w-0 flex-1 space-y-5">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {data.patient.name}
+              </h3>
+              <p className="text-sm text-gray-500">{data.patient.email}</p>
+            </div>
+            <RiskBadge level={data.riskLevel} />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <ClinicalData label="Tipo de sangre" value={data.patient.bloodType} />
+            <ClinicalData
+              label="Fecha de nacimiento"
+              value={formatDisplayDate(data.patient.dateOfBirth)}
+            />
+            <ClinicalData
+              label="Dosis tomadas hoy"
+              value={String(data.takenDoses)}
+            />
+            <ClinicalData
+              label="Dosis omitidas hoy"
+              value={String(data.missedDoses)}
+            />
+            <ClinicalData
+              label="Próxima cita"
+              value={
+                nextAppointment
+                  ? formatDisplayDate(nextAppointment)
+                  : 'Sin cita programada'
+              }
+            />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-gray-300 bg-gray-100 p-4">
+              <p className="text-sm font-semibold text-gray-900">
+                Historial médico
+              </p>
+              <p className="mt-2 text-sm text-gray-600">
+                {data.patient.medicalHistory || 'Sin historial registrado'}
+              </p>
+            </div>
+            <div className="rounded-lg border border-amber-300 bg-amber-100 p-4">
+              <p className="text-sm font-semibold text-amber-900">Alergias</p>
+              <p className="mt-2 text-sm text-amber-800">
+                {data.patient.allergies || 'Sin alergias registradas'}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+              <span>
+                <strong>{activeTreatments.length}</strong> activos
+              </span>
+              <span>
+                <strong>{completedTreatments.length}</strong> finalizados
+              </span>
+              <span>
+                <strong>{data.compliance}%</strong> progreso general
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {data.treatments.map((treatment) => (
+                <div
+                  key={treatment.id}
+                  className="rounded-lg border border-gray-300 bg-gray-50 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {treatment.title}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {formatDisplayDate(treatment.startDate)} al{' '}
+                        {formatDisplayDate(treatment.endDate)}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      {treatment.progress || 0}%
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(treatment.medications || []).length === 0 ? (
+                      <span className="text-sm text-gray-500">
+                        Sin medicamentos
+                      </span>
+                    ) : (
+                      treatment.medications.map((medication) => (
+                        <span
+                          key={medication.id}
+                          className="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-800"
+                        >
+                          {medication.name} {medication.dosage}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <PatientActions
+            onPrescribe={onPrescribe}
+            onShowEffects={onShowEffects}
+          />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ClinicalData({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="rounded-lg border border-gray-300 bg-gray-100 p-3">
+      <p className="text-xs text-gray-600">{label}</p>
+      <p className="mt-1 text-sm font-medium text-gray-900">
+        {value || 'No registrado'}
+      </p>
     </div>
   );
 }
@@ -1074,7 +1357,7 @@ function Metric({
   danger?: boolean;
 }) {
   return (
-    <div className="rounded-lg bg-gray-50 p-3">
+    <div className="rounded-lg border border-gray-300 bg-gray-100 p-3">
       <p className="mb-1 text-xs text-gray-600">{label}</p>
       <p
         className={`text-lg font-semibold ${
@@ -1214,4 +1497,15 @@ function getDateValue(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(date?: string) {
+  if (!date) return 'No registrada';
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString('es-PE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }

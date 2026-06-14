@@ -98,7 +98,6 @@ export async function markDoseTaken(
     {
       scheduledTime,
       scheduledDate,
-      takenAt: new Date().toISOString(),
     },
   );
   notifyMedicationComplianceUpdated();

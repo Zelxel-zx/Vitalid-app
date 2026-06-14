@@ -1,5 +1,6 @@
 export { LoginScreen } from './LoginScreen';
 export { DoctorCard } from './DoctorCard';
+export { PatientMessageCard } from './PatientMessageCard';
 export { ChatInterface } from './ChatInterface';
 export { TreatmentCard } from './TreatmentCard';
 export { ProgressChart } from './ProgressChart';
@@ -7,6 +8,7 @@ export { MedicationTracker } from './MedicationTracker';
 export { AppointmentBooking } from './AppointmentBooking';
 export { AppointmentHistory } from './AppointmentHistory';
 export { DoctorDashboard } from './DoctorDashboard';
+export { DoctorPatientsView } from './DoctorDashboard';
 export { PatientRegistrationForm } from './PatientRegistrationForm';
 export { DoctorRegistrationForm } from './DoctorRegistrationForm';
 export { TreatmentsView } from './TreatmentsView';

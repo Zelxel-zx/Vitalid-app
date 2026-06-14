@@ -1,4 +1,4 @@
-import { MessageCircle, Video, Calendar } from 'lucide-react';
+import { MessageCircle, Video, Calendar, UserRound } from 'lucide-react';
 import { formatDoctorName } from '../../services/doctorService';
 
 interface DoctorCardProps {
@@ -25,11 +25,17 @@ export function DoctorCard({ name, specialty, avatar, status, unreadMessages, on
     >
       <div className="flex items-start gap-4">
         <div className="relative">
-          <img
-            src={avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
-            alt={displayName}
-            className="w-16 h-16 rounded-full object-cover"
-          />
+          {avatar ? (
+            <img
+              src={avatar}
+              alt={displayName}
+              className="w-16 h-16 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <UserRound size={30} />
+            </div>
+          )}
           <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${statusColors[(status?.toLowerCase() as keyof typeof statusColors) || 'offline']}`} />
         </div>
 

@@ -198,7 +198,7 @@ export function TreatmentChecklistView({
                     }`}
                   >
                     {medication.lowStock ? <TriangleAlert size={17} /> : <Package size={17} />}
-                    {medication.pillsRemaining ?? 0} restantes
+                    {medication.pillsRemaining ?? 0} en stock
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <button
@@ -232,7 +232,7 @@ export function TreatmentChecklistView({
               </div>
 
               {medication.sideEffects?.trim() && (
-                <div className="mt-4 rounded-lg border border-amber-400 bg-amber-100 p-3">
+                <div className="mt-4 rounded-lg border border-amber-400/[0.94] bg-amber-100/[0.94] p-3">
                   <p className="flex items-center gap-2 text-sm font-semibold text-amber-950">
                     <TriangleAlert size={17} />
                     Efectos secundarios registrados
@@ -245,7 +245,7 @@ export function TreatmentChecklistView({
                       .map((effect, index) => (
                         <span
                           key={`${effect}-${index}`}
-                          className="rounded-full border border-amber-400 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-900"
+                          className="rounded-full border border-amber-400/[0.94] bg-amber-50/[0.94] px-3 py-1 text-sm font-medium text-amber-900"
                         >
                           {effect}
                         </span>
@@ -281,8 +281,8 @@ export function TreatmentChecklistView({
                       }
                       className={`flex w-full items-center justify-between rounded-lg border p-3 text-left transition ${
                         dose.taken
-                          ? 'border border-green-400 bg-green-100 text-green-950'
-                          : 'border-2 border-primary/40 bg-primary/10 text-primary hover:border-primary hover:bg-primary/20'
+                          ? 'border border-green-400/[0.94] bg-green-100/[0.94] text-green-950'
+                          : 'border-2 border-primary/[0.34] bg-primary/[0.04] text-primary hover:border-primary/[0.94] hover:bg-primary/[0.14]'
                       } disabled:opacity-60`}
                     >
                       <span className="flex items-center gap-3 font-semibold">
@@ -296,7 +296,7 @@ export function TreatmentChecklistView({
                         className={`flex h-7 w-7 items-center justify-center rounded-full ${
                           dose.taken
                             ? 'bg-green-700 text-white'
-                            : 'border-2 border-primary/60 bg-white'
+                            : 'border-2 border-primary/[0.54] bg-white'
                         }`}
                       >
                         {dose.taken && <Check size={17} />}

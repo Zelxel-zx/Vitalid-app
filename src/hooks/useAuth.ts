@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { UserType } from '../types';
 import { login, register, RegisterInput } from '../services/authService';
+import {
+  clearAuthItems,
+  setAuthItem,
+} from '../services/authStorage';
 
 interface AuthState {
   isLoggedIn: boolean;
@@ -34,10 +38,10 @@ export function useAuth() {
       needsPatientProfile: false,
       needsDoctorProfile: false,
     });
-    localStorage.setItem('authToken', auth.token);
-    localStorage.setItem('authUserType', auth.userType);
-    localStorage.setItem('authUserId', auth.id.toString());
-    localStorage.setItem('authUserName', auth.name);
+    setAuthItem('authToken', auth.token);
+    setAuthItem('authUserType', auth.userType);
+    setAuthItem('authUserId', auth.id.toString());
+    setAuthItem('authUserName', auth.name);
   }, []);
 
   const handleRegister = useCallback(async (payload: RegisterInput) => {
@@ -51,10 +55,10 @@ export function useAuth() {
       needsPatientProfile: auth.userType === 'patient',
       needsDoctorProfile: auth.userType === 'doctor',
     });
-    localStorage.setItem('authToken', auth.token);
-    localStorage.setItem('authUserType', auth.userType);
-    localStorage.setItem('authUserId', auth.id.toString());
-    localStorage.setItem('authUserName', auth.name);
+    setAuthItem('authToken', auth.token);
+    setAuthItem('authUserType', auth.userType);
+    setAuthItem('authUserId', auth.id.toString());
+    setAuthItem('authUserName', auth.name);
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -67,10 +71,7 @@ export function useAuth() {
       needsPatientProfile: false,
       needsDoctorProfile: false,
     });
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('authUserType');
-    localStorage.removeItem('authUserId');
-    localStorage.removeItem('authUserName');
+    clearAuthItems();
   }, []);
 
   return {
