@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, MapPin, Video, FileText, Edit2, X, UserRound } from 'lucide-react';
 import { getAppointmentsForPatient, getAppointmentsForDoctor, rescheduleAppointment, AppointmentResponse } from '../../services/appointmentService';
-import { getDoctorById } from '../../services/doctorService';
+import { getAllDoctors, getDoctorById } from '../../services/doctorService';
 import { getMyTreatments } from '../../services/treatmentService';
 import { getAuthItem } from '../../services/authStorage';
 
@@ -40,7 +40,12 @@ export function AppointmentHistory({
 
       let data: EnrichedAppointment[] = [];
       if (userType === 'doctor') {
-        data = await getAppointmentsForDoctor(userId);
+        const doctors = await getAllDoctors();
+        const currentDoctor = doctors.find((doctor) => doctor.userId === userId);
+        if (!currentDoctor) {
+          throw new Error('Doctor profile not found for current user');
+        }
+        data = await getAppointmentsForDoctor(currentDoctor.id);
       } else {
         data = await getAppointmentsForPatient(userId);
 
