@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { getAllPatients, PatientResponse } from '../../services/patientService';
+import { downloadPatientReport } from '../../services/reportService';
 import { sendEmail } from '../../services/notificationService';
 import {
   addMedicationToTreatment,
@@ -180,6 +181,20 @@ export function DoctorDashboard({
     (patient) => patient.riskLevel !== 'high',
   );
 
+  const handleDownloadReport = async (patient: DoctorPatient) => {
+  try {
+    setError(null);
+    await downloadPatientReport(patient.patient.id);
+  } catch (err) {
+    console.error('Error downloading patient report:', err);
+    setError(
+      err instanceof Error
+        ? err.message
+        : 'No se pudo descargar el historial médico.',
+    );
+  }
+};
+
   const openPrescriptionPanel = (patient: DoctorPatient) => {
     setPrescriptionPatient(patient);
     setPrescriptionMode('treatments');
@@ -323,6 +338,7 @@ export function DoctorDashboard({
                 data={patient}
                 onPrescribe={() => openPrescriptionPanel(patient)}
                 onShowEffects={() => setEffectsPatient(patient)}
+                onDownloadReport={() => handleDownloadReport(patient)}
               />
             ))}
           </div>
@@ -403,6 +419,7 @@ export function DoctorDashboard({
                 data={patient}
                 onPrescribe={() => openPrescriptionPanel(patient)}
                 onShowEffects={() => setEffectsPatient(patient)}
+                onDownloadReport={() => handleDownloadReport(patient)}
                 onContact={() => {
                   setContactPatient(patient);
                   setEmailSubject(`Seguimiento - ${patient.patient.name}`);
@@ -445,6 +462,7 @@ export function DoctorDashboard({
                 data={patient}
                 onPrescribe={() => openPrescriptionPanel(patient)}
                 onShowEffects={() => setEffectsPatient(patient)}
+                onDownloadReport={() => handleDownloadReport(patient)}
               />
             ))}
           </div>
@@ -694,11 +712,13 @@ function CriticalPatientCard({
   data,
   onPrescribe,
   onShowEffects,
+  onDownloadReport,
   onContact,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onDownloadReport: () => void;
   onContact?: () => void;
 }) {
   return (
@@ -748,6 +768,7 @@ function CriticalPatientCard({
             critical
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
+            onDownloadReport={onDownloadReport}
             onContact={onContact}
           />
         </div>
@@ -760,10 +781,12 @@ function PatientRow({
   data,
   onPrescribe,
   onShowEffects,
+  onDownloadReport,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onDownloadReport: () => void;
 }) {
   return (
     <div className="rounded-xl border border-primary bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
@@ -796,6 +819,7 @@ function PatientRow({
           <PatientActions
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
+            onDownloadReport={onDownloadReport}
           />
         </div>
       </div>
@@ -807,10 +831,12 @@ function DetailedPatientCard({
   data,
   onPrescribe,
   onShowEffects,
+  onDownloadReport,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onDownloadReport: () => void;
 }) {
   const activeTreatments = data.treatments.filter(
     (treatment) => treatment.status?.toUpperCase() === 'ACTIVE',
@@ -936,6 +962,7 @@ function DetailedPatientCard({
           <PatientActions
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
+            onDownloadReport={onDownloadReport}
           />
         </div>
       </div>
@@ -958,11 +985,13 @@ function PatientActions({
   critical = false,
   onPrescribe,
   onShowEffects,
+  onDownloadReport,
   onContact,
 }: {
   critical?: boolean;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onDownloadReport: () => void;
   onContact?: () => void;
 }) {
   return (
@@ -987,9 +1016,9 @@ function PatientActions({
       </button>
       <button
         type="button"
-        disabled
-        className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 opacity-50"
-        title="Disponible próximamente"
+        onClick={onDownloadReport}
+        className="flex items-center gap-2 rounded-lg border border-sky-500 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-100 hover:text-sky-800"
+        title="Descargar historial médico"
       >
         <FileText size={17} />
         Historial médico
