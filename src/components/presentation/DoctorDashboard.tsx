@@ -12,6 +12,9 @@ import {
   X,
 } from 'lucide-react';
 import { getAllPatients, PatientResponse } from '../../services/patientService';
+import { getAppointmentsForDoctor } from '../../services/appointmentService';
+import { getAuthItem } from '../../services/authStorage';
+import { getAllDoctors } from '../../services/doctorService';
 import { sendEmail } from '../../services/notificationService';
 import {
   addMedicationToTreatment,
@@ -104,13 +107,22 @@ export function DoctorDashboard({
     try {
       if (showLoading) setIsLoading(true);
       setError(null);
-      const [patientData, treatmentData] = await Promise.all([
+      const [patientData, treatmentData, doctorData] = await Promise.all([
         getAllPatients(),
         getMyTreatments(),
+        getAllDoctors(),
       ]);
+      const authUserId = Number(getAuthItem('authUserId'));
+      const currentDoctor = doctorData.find((doctor) => doctor.userId === authUserId);
+      const appointmentData = currentDoctor
+        ? await getAppointmentsForDoctor(currentDoctor.id)
+        : [];
       const assignedPatientIds = new Set(
         treatmentData.map((treatment) => treatment.patientId),
       );
+      appointmentData
+        .filter(isFinishedAppointment)
+        .forEach((appointment) => assignedPatientIds.add(appointment.patientId));
 
       const mapped = await Promise.all(
         patientData
@@ -635,6 +647,26 @@ function calculateRisk(missedDoses: number): RiskLevel {
   if (missedDoses >= 2) return 'high';
   if (missedDoses === 1) return 'medium';
   return 'low';
+}
+
+function isFinishedAppointment(appointment: {
+  date: string;
+  time: string;
+  status: string;
+}) {
+  if (appointment.status?.toUpperCase() === 'CANCELLED') {
+    return false;
+  }
+  if (!appointment.date || !appointment.time) {
+    return false;
+  }
+
+  const appointmentEnd = new Date(`${appointment.date}T${appointment.time}`);
+  if (Number.isNaN(appointmentEnd.getTime())) {
+    return false;
+  }
+  appointmentEnd.setMinutes(appointmentEnd.getMinutes() + 30);
+  return appointmentEnd <= new Date();
 }
 
 function RiskSummary({
