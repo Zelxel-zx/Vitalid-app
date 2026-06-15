@@ -563,12 +563,57 @@ async function buildDoctorPatient(
   const relevantTreatments = treatments.filter(
     (treatment) => treatment.status?.toUpperCase() !== 'CANCELLED',
   );
-  const progressTreatments = relevantTreatments.filter(
+
+  const activeTreatments = relevantTreatments.filter(
     (treatment) => treatment.status?.toUpperCase() === 'ACTIVE',
   );
+
+  const activeTodayTreatments = activeTreatments.filter(
+    (treatment) =>
+      (!treatment.startDate || treatment.startDate <= today) &&
+      (!treatment.endDate || treatment.endDate >= today),
+  );
+
+  const checklists = await Promise.allSettled(
+    activeTodayTreatments.map((treatment) =>
+      getTreatmentChecklist(treatment.id, today),
+    ),
+  );
+
+  const fulfilledChecklists = checklists
+    .filter(
+      (result): result is PromiseFulfilledResult<TreatmentChecklist> =>
+        result.status === 'fulfilled',
+    )
+    .map((result) => result.value);
+
+  const missedDoses = fulfilledChecklists.reduce(
+    (total, checklist) =>
+      total + (Number(checklist.summary?.missedDoses) || 0),
+    0,
+  );
+
+  const takenDoses = fulfilledChecklists.reduce(
+    (total, checklist) =>
+      total + (Number(checklist.summary?.takenDoses) || 0),
+    0,
+  );
+
+  const checklistCompliance =
+    fulfilledChecklists.length === 0
+      ? null
+      : Math.round(
+          fulfilledChecklists.reduce(
+            (total, checklist) =>
+              total + (Number(checklist.summary?.percentage) || 0),
+            0,
+          ) / fulfilledChecklists.length,
+        );
+
   const progressSource =
-    progressTreatments.length > 0 ? progressTreatments : relevantTreatments;
-  const compliance =
+    activeTreatments.length > 0 ? activeTreatments : relevantTreatments;
+
+  const fallbackCompliance =
     progressSource.length === 0
       ? 0
       : Math.round(
@@ -578,38 +623,11 @@ async function buildDoctorPatient(
           ) / progressSource.length,
         );
 
-  const checklists = await Promise.allSettled(
-    progressTreatments
-      .filter(
-        (treatment) =>
-          (!treatment.startDate || treatment.startDate <= today) &&
-          (!treatment.endDate || treatment.endDate >= today),
-      )
-      .map((treatment) => getTreatmentChecklist(treatment.id, today)),
-  );
-  const missedDoses = checklists
-    .filter(
-      (result): result is PromiseFulfilledResult<TreatmentChecklist> =>
-        result.status === 'fulfilled',
-    )
-    .reduce(
-      (total, result) =>
-        total + (Number(result.value.summary.missedDoses) || 0),
-      0,
-    );
-  const takenDoses = checklists
-    .filter(
-      (result): result is PromiseFulfilledResult<TreatmentChecklist> =>
-        result.status === 'fulfilled',
-    )
-    .reduce(
-      (total, result) =>
-        total + (Number(result.value.summary.takenDoses) || 0),
-      0,
-    );
+  const compliance =
+    checklistCompliance !== null ? checklistCompliance : fallbackCompliance;
 
-  const sideEffects = treatments.flatMap((treatment) =>
-    (treatment.medications || [])
+  const sideEffects = fulfilledChecklists.flatMap((checklist) =>
+    (checklist.medications || [])
       .filter((medication) => medication.sideEffects?.trim())
       .map((medication) => ({
         medication: medication.name,
@@ -626,14 +644,14 @@ async function buildDoctorPatient(
     compliance,
     takenDoses,
     missedDoses,
-    riskLevel: calculateRisk(missedDoses),
+    riskLevel: calculateRisk(missedDoses, compliance),
     sideEffects,
   };
 }
 
-function calculateRisk(missedDoses: number): RiskLevel {
-  if (missedDoses >= 2) return 'high';
-  if (missedDoses === 1) return 'medium';
+function calculateRisk(missedDoses: number, compliance: number): RiskLevel {
+  if (missedDoses >= 2 || compliance < 50) return 'high';
+  if (missedDoses === 1 || compliance < 80) return 'medium';
   return 'low';
 }
 
