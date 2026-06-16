@@ -482,7 +482,8 @@ function MainApp({
       </main>
 
       {/* Global incoming call notification — visible on any view */}
-      <IncomingCallModal onAccepted={handleIncomingCallAccepted} />
+      {/* Videollamada deshabilitada temporalmente: backend aún no tiene endpoints /calls */}
+      {/* <IncomingCallModal onAccepted={handleIncomingCallAccepted} /> */}
 
       {/* Global call window — opened when an incoming call is accepted */}
       {globalCallRoom && (
@@ -501,6 +502,7 @@ function MainApp({
  * Finds the doctor's own entity ID, loads their patient conversation list,
  * and opens individual conversations with proper bidirectional messaging.
  */
+
 function DoctorMessagesView({
   doctors,
   userId,
@@ -512,34 +514,77 @@ function DoctorMessagesView({
   const [selectedPatient, setSelectedPatient] = useState<PatientResponse | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolvedDoctorId, setResolvedDoctorId] = useState<number | null>(null);
 
-  const myDoctor = doctors.find((d) => d.userId === userId);
+  const myDoctor = doctors.find((doctor) => doctor.userId === userId);
   const myDoctorId = myDoctor?.id ?? null;
 
   useEffect(() => {
-    if (!myDoctorId) return;
+    let mounted = true;
+
+    if (!userId) {
+      setPatients([]);
+      setResolvedDoctorId(null);
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    setLoading(true);
+
     Promise.all([getMyTreatments(), getAllPatients()])
       .then(([treatments, allPatients]) => {
-        const assignedIds = new Set(treatments.map((treatment) => treatment.patientId));
-        setPatients(allPatients.filter((patient) => assignedIds.has(patient.id)));
+        if (!mounted) return;
+
+        const doctorIdFromTreatments =
+          treatments.find((treatment) => treatment.doctorId)?.doctorId ?? null;
+
+        const effectiveDoctorId = myDoctorId ?? doctorIdFromTreatments;
+
+        setResolvedDoctorId(effectiveDoctorId);
+
+        const assignedIds = new Set(
+          treatments.map((treatment) => treatment.patientId),
+        );
+
+        setPatients(
+          allPatients.filter((patient) => assignedIds.has(patient.id)),
+        );
       })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [myDoctorId]);
+      .catch((error) => {
+        console.error('Error loading doctor conversations:', error);
+        if (mounted) {
+          setPatients([]);
+          setResolvedDoctorId(null);
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [userId, myDoctorId]);
 
   useEffect(() => {
-    if (!myDoctorId || !selectedPatient) return;
-    chatService
-      .getMessagesForDoctor(myDoctorId, selectedPatient.userId)
-      .then(setChatMessages)
-      .catch(console.error);
-  }, [myDoctorId, selectedPatient]);
+    if (!resolvedDoctorId || !selectedPatient) return;
 
-  if (selectedPatient && myDoctorId) {
+    chatService
+      .getMessagesForDoctor(resolvedDoctorId, selectedPatient.userId)
+      .then(setChatMessages)
+      .catch((error) => {
+        console.error('Error loading selected patient chat:', error);
+        setChatMessages([]);
+      });
+  }, [resolvedDoctorId, selectedPatient]);
+
+  if (selectedPatient && resolvedDoctorId) {
     return (
       <div className="h-[calc(100vh-12rem)]">
         <ChatInterface
-          doctorId={myDoctorId}
+          doctorId={resolvedDoctorId}
           doctorName={selectedPatient.name}
           doctorAvatar={selectedPatient.avatar || ''}
           messages={chatMessages}
@@ -564,39 +609,46 @@ function DoctorMessagesView({
       {!loading && patients.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-500">
           <MessageCircle size={36} className="mx-auto mb-3 opacity-40" />
-          <p className="font-medium">Sin mensajes aún</p>
-          <p className="text-sm mt-1">Los pacientes que te escriban aparecerán aquí.</p>
+          <p className="font-medium">Sin conversaciones disponibles</p>
+          <p className="text-sm mt-1">
+            Los pacientes asignados a tus tratamientos aparecerán aquí.
+          </p>
         </div>
       )}
 
-      <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white overflow-hidden">
-        {patients.map((patient) => (
-          <button
-            key={patient.id}
-            onClick={() => setSelectedPatient(patient)}
-            className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
-          >
-            {patient.avatar ? (
-              <img
-                src={patient.avatar}
-                alt={patient.name}
-                className="h-11 w-11 shrink-0 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <UserRound size={22} className="text-primary" />
+      {!loading && patients.length > 0 && (
+        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white overflow-hidden">
+          {patients.map((patient) => (
+            <button
+              key={patient.id}
+              onClick={() => setSelectedPatient(patient)}
+              className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+            >
+              {patient.avatar ? (
+                <img
+                  src={patient.avatar}
+                  alt={patient.name}
+                  className="h-11 w-11 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <UserRound size={22} className="text-primary" />
+                </div>
+              )}
+
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-gray-900">{patient.name}</p>
+                <p className="text-sm text-gray-500 truncate">{patient.email}</p>
               </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-gray-900">{patient.name}</p>
-              <p className="text-sm text-gray-500 truncate">{patient.email}</p>
-            </div>
-            <span className="text-xs text-gray-400 shrink-0">
-              {patient.bloodType || ''}
-            </span>
-          </button>
-        ))}
-      </div>
+
+              <span className="text-xs text-primary font-medium shrink-0">
+                Abrir chat
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+
