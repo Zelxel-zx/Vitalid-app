@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Image as ImageIcon, Phone, Video, MoreVertical, ArrowLeft, X, FileText, PhoneOff } from 'lucide-react';
 import { chatService } from '../../services/chatService';
 import { JitsiCallModal } from './JitsiCallModal';
-import { postJson, putJson } from '../../services/apiClient';
+// import { postJson, putJson } from '../../services/apiClient';
 import { getAuthItem } from '../../services/authStorage';
 
 interface Message {
@@ -108,40 +108,21 @@ export function ChatInterface({ doctorId, doctorName, doctorAvatar, messages: in
    * 1. Posts /calls/initiate so the recipient gets a ringing notification
    * 2. Opens the Jitsi call in-app (no new tab, no lobby issue)
    */
-  const initiateCall = async () => {
-    const roomName = `vitalid-room-${doctorId}-${Date.now()}`;
-    setIsCalling(true);
-    try {
-      // Determine who to notify
-      const targetUserId = isDoctor ? chatPartnerUserId : recipientUserId;
-      if (targetUserId && myUserId) {
-        const result = await postJson<{ callId: number; roomName: string }>('/calls/initiate', {
-          callerUserId: Number(myUserId),
-          recipientUserId: targetUserId,
-          roomName,
-        });
-        setActiveCallId(result.callId);
-        setActiveCallRoom(result.roomName);
-      } else {
-        // Fallback: open without notification
-        setActiveCallRoom(roomName);
-      }
-    } catch (err) {
-      console.error('Error initiating call:', err);
-      setActiveCallRoom(roomName);
-    } finally {
-      setIsCalling(false);
-    }
+  const initiateCall = () => {
+    const patientUserId = isDoctor
+      ? chatPartnerUserId
+      : Number(myUserId);
+
+    const roomName = `vitalid-room-${doctorId}-${patientUserId || 'guest'}`;
+
+    setActiveCallId(null);
+    setActiveCallRoom(roomName);
   };
 
-  const endCall = async () => {
-    if (activeCallId) {
-      try { await putJson(`/calls/${activeCallId}/status`, { status: 'ENDED' }); } catch {/* ignore */}
-    }
+  const endCall = () => {
     setActiveCallRoom(null);
     setActiveCallId(null);
   };
-
   const renderMessageContent = (content: string) => {
     if (isImageUri(content)) {
       return (
