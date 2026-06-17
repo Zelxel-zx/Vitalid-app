@@ -11,10 +11,10 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react';
+
 import { getAllPatients, PatientResponse } from '../../services/patientService';
 import { getAppointmentsForDoctor } from '../../services/appointmentService';
 import { getAuthItem } from '../../services/authStorage';
-import { getAllDoctors } from '../../services/doctorService';
 import { sendEmail } from '../../services/notificationService';
 import {
   addMedicationToTreatment,
@@ -107,22 +107,32 @@ export function DoctorDashboard({
     try {
       if (showLoading) setIsLoading(true);
       setError(null);
-      const [patientData, treatmentData, doctorData] = await Promise.all([
+
+      const doctorId = Number(
+        getAuthItem('authDoctorId') || getAuthItem('authUserId'),
+      );
+
+      const [patientData, treatmentData, appointmentData] = await Promise.all([
         getAllPatients(),
         getMyTreatments(),
-        getAllDoctors(),
+        doctorId
+          ? getAppointmentsForDoctor(doctorId).catch(() => [])
+          : Promise.resolve([]),
       ]);
-      const authUserId = Number(getAuthItem('authUserId'));
-      const currentDoctor = doctorData.find((doctor) => doctor.userId === authUserId);
-      const appointmentData = currentDoctor
-        ? await getAppointmentsForDoctor(currentDoctor.id)
-        : [];
-      const assignedPatientIds = new Set(
-        treatmentData.map((treatment) => treatment.patientId),
-      );
-      appointmentData
-        .filter(isFinishedAppointment)
-        .forEach((appointment) => assignedPatientIds.add(appointment.patientId));
+
+      const assignedPatientIds = new Set<number>();
+
+      treatmentData.forEach((treatment) => {
+        if (treatment.patientId) {
+          assignedPatientIds.add(treatment.patientId);
+        }
+      });
+
+      appointmentData.forEach((appointment) => {
+        if (appointment.patientId) {
+          assignedPatientIds.add(appointment.patientId);
+        }
+      });
 
       const mapped = await Promise.all(
         patientData
@@ -136,6 +146,7 @@ export function DoctorDashboard({
             ),
           ),
       );
+
       setPatients(mapped);
     } catch (err) {
       console.error('Error loading doctor dashboard:', err);
@@ -582,7 +593,7 @@ async function buildDoctorPatient(
     progressTreatments.length > 0 ? progressTreatments : relevantTreatments;
   const compliance =
     progressSource.length === 0
-      ? 0
+      ? 100
       : Math.round(
           progressSource.reduce(
             (total, treatment) => total + (Number(treatment.progress) || 0),
@@ -638,14 +649,14 @@ async function buildDoctorPatient(
     compliance,
     takenDoses,
     missedDoses,
-    riskLevel: calculateRisk(missedDoses),
+    riskLevel: calculateRisk(missedDoses,compliance),
     sideEffects,
   };
 }
 
-function calculateRisk(missedDoses: number): RiskLevel {
-  if (missedDoses >= 2) return 'high';
-  if (missedDoses === 1) return 'medium';
+function calculateRisk(missedDoses: number, compliance: number): RiskLevel {
+  if (missedDoses >= 2 || compliance < 50) return 'high';
+  if (missedDoses === 1 || compliance < 80) return 'medium';
   return 'low';
 }
 

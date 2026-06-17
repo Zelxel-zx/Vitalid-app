@@ -542,13 +542,7 @@ function DoctorMessagesView({
 
         setResolvedDoctorId(effectiveDoctorId);
 
-        const assignedIds = new Set(
-          treatments.map((treatment) => treatment.patientId),
-        );
-
-        setPatients(
-          allPatients.filter((patient) => assignedIds.has(patient.id)),
-        );
+        setPatients(allPatients);
       })
       .catch((error) => {
         console.error('Error loading doctor conversations:', error);

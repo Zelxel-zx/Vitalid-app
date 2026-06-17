@@ -1,12 +1,12 @@
 import { postJson } from './apiClient';
 
-interface AuthPayload {
+export interface LoginResult {
   id: number;
+  profileId?: number | null;
   name: string;
   email: string;
-  type: 'PATIENT' | 'DOCTOR';
+  userType: 'patient' | 'doctor';
   token: string;
-  message?: string;
 }
 
 export interface LoginResult {
@@ -49,6 +49,7 @@ export async function register(input: RegisterInput): Promise<LoginResult> {
 function normalizeAuth(data: AuthPayload): LoginResult {
   return {
     id: data.id,
+    profileId: data.profileId,
     name: data.name,
     email: data.email,
     token: data.token,

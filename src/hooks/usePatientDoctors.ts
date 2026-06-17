@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getAppointmentsForPatient } from '../services/appointmentService';
 import { getMyTreatments } from '../services/treatmentService';
+import { getAuthItem } from '../services/authStorage';
 
 export function usePatientDoctors(userId: number | null) {
   const [doctorIds, setDoctorIds] = useState<Set<number>>(new Set());
@@ -15,7 +16,9 @@ export function usePatientDoctors(userId: number | null) {
       }
 
       const [appointmentsResult, treatmentsResult] = await Promise.allSettled([
-        getAppointmentsForPatient(userId),
+        getAppointmentsForPatient(
+          Number(getAuthItem('authPatientId') || userId),
+        ),
         getMyTreatments(),
       ]);
       const ids = new Set<number>();

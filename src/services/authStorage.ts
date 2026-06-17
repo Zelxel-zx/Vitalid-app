@@ -3,6 +3,9 @@ const AUTH_KEYS = [
   'authUserType',
   'authUserId',
   'authUserName',
+  'authProfileId',
+  'authPatientId',
+  'authDoctorId',
 ] as const;
 
 type AuthKey = (typeof AUTH_KEYS)[number];

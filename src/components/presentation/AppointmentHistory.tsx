@@ -38,17 +38,18 @@ export function AppointmentHistory({
       const userType = getAuthItem('authUserType');
       if (!userId) return;
 
+      const profileId = Number(
+        userType === 'doctor'
+          ? getAuthItem('authDoctorId') || userId
+          : getAuthItem('authPatientId') || userId,
+      );
+
       let data: EnrichedAppointment[] = [];
       if (userType === 'doctor') {
-        const doctors = await getAllDoctors();
-        const currentDoctor = doctors.find((doctor) => doctor.userId === userId);
-        if (!currentDoctor) {
-          throw new Error('Doctor profile not found for current user');
-        }
-        data = await getAppointmentsForDoctor(currentDoctor.id);
+        data = await getAppointmentsForDoctor(profileId);
       } else {
-        data = await getAppointmentsForPatient(userId);
-
+        data = await getAppointmentsForPatient(profileId);
+        
         const treatments = await getMyTreatments().catch((error) => {
           console.error('Error loading treatment follow-ups:', error);
           return [];
