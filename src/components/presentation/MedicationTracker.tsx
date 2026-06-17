@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Pill, Clock, Check, X, AlertCircle, Plus } from 'lucide-react';
 import { getMedicationsForPatient, takeDose, addSideEffect, MedicationResponse } from '../../services/medicationService';
+import { usePatientDashboard } from '../../hooks/usePatientDashboard';
+import { getAuthItem } from '../../services/authStorage';
 
 interface Medication {
   id: string;
@@ -9,7 +11,6 @@ interface Medication {
   frequency: string;
   times: string[];
   pillsRemaining: number;
-  totalPills: number;
   sideEffects?: string[];
 }
 
@@ -23,6 +24,8 @@ interface MedicationLog {
 export function MedicationTracker() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const userId = Number(getAuthItem('authUserId')) || null;
+  const { summary: dashboardSummary } = usePatientDashboard(userId);
 
   const [todayLogs, setTodayLogs] = useState<MedicationLog[]>([]);
 
@@ -37,7 +40,7 @@ export function MedicationTracker() {
   const loadMedications = async () => {
     try {
       setIsLoading(true);
-      const userId = Number(localStorage.getItem('authUserId'));
+      const userId = Number(getAuthItem('authUserId'));
       if (!userId) return;
 
       const data = await getMedicationsForPatient(userId);
@@ -60,7 +63,6 @@ export function MedicationTracker() {
           frequency: m.frequency,
           times,
           pillsRemaining: m.pillsRemaining !== null ? m.pillsRemaining : 0,
-          totalPills: m.totalPills !== null ? m.totalPills : 30,
           sideEffects: sideEffectsArray
         };
       });
@@ -98,12 +100,6 @@ export function MedicationTracker() {
     return todayLogs.find(l => l.medicationId === medicationId && l.time === time)?.taken || false;
   };
 
-  const getCompliancePercentage = () => {
-    const total = medications.reduce((acc, med) => acc + med.times.length, 0);
-    const taken = todayLogs.filter(l => l.taken).length;
-    return Math.round((taken / total) * 100);
-  };
-
   const handleAddSideEffect = async () => {
     if (!selectedMedication || !sideEffectNote.trim()) return;
     
@@ -134,16 +130,11 @@ export function MedicationTracker() {
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-primary to-cyan-500 text-white rounded-xl p-6">
         <h2 className="text-xl font-semibold mb-2">Cumplimiento de Hoy</h2>
-        <div className="flex items-end gap-4">
-          <div className="text-4xl font-bold">{getCompliancePercentage()}%</div>
-          <div className="text-cyan-100 mb-1">
-            {todayLogs.filter(l => l.taken).length} de {medications.reduce((acc, med) => acc + med.times.length, 0)} dosis
-          </div>
-        </div>
+        <div className="text-4xl font-bold">{dashboardSummary.medicationCompliance}%</div>
         <div className="mt-4 bg-white/20 rounded-full h-2">
           <div
             className="bg-white h-2 rounded-full transition-all duration-300"
-            style={{ width: `${getCompliancePercentage()}%` }}
+            style={{ width: `${dashboardSummary.medicationCompliance}%` }}
           />
         </div>
       </div>
@@ -221,7 +212,7 @@ export function MedicationTracker() {
                 {lowStock && <AlertCircle className="text-red-700 flex-shrink-0" size={20} />}
                 <div>
                   <p className={`text-sm font-medium ${lowStock ? 'text-red-900' : 'text-gray-700'}`}>
-                    {medication.pillsRemaining} pastillas restantes ({daysRemaining} días)
+                    {medication.pillsRemaining} pastillas en stock ({daysRemaining} días)
                   </p>
                   {lowStock && (
                     <p className="text-sm text-red-700 mt-1">

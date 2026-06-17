@@ -1,3 +1,5 @@
+import { getAuthItem } from './authStorage';
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -13,16 +15,18 @@ async function parseJson(response: Response) {
   return null;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export async function request<T>(path: string, options: RequestInit = {}) {
-  const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
-  const url = path.startsWith('http') ? path : `${apiBase}${path.startsWith('/') ? path : `/${path}`}`;
-  const token = localStorage.getItem('authToken');
+  const normalizedPath = path;
+  const url = `${API_BASE_URL}${normalizedPath}`;
+  const token = getAuthItem('authToken');
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  
-  // Merge custom headers
+
   if (options.headers) {
     Object.assign(headers, options.headers);
   }
@@ -64,4 +68,35 @@ export async function putJson<T>(path: string, body: unknown) {
     method: 'PUT',
     body: JSON.stringify(body),
   });
+}
+
+/**
+ * Upload a file as multipart/form-data.
+ * Do NOT set Content-Type manually — fetch sets it with the proper boundary.
+ */
+export async function uploadFile<T>(path: string, file: File, fieldName = 'file'): Promise<T> {
+  const url = `${API_BASE_URL}${path}`;
+  const token = getAuthItem('authToken');
+
+  const formData = new FormData();
+  formData.append(fieldName, file);
+
+  const headers: Record<string, string> = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  const payload = await parseJson(response);
+
+  if (!response.ok) {
+    const message = payload?.message || response.statusText || 'Upload failed';
+    throw new Error(message);
+  }
+
+  return payload as T;
 }

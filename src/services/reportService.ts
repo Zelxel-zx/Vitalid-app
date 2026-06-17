@@ -1,7 +1,9 @@
-const API_BASE_URL = '/api';
+import { getAuthItem } from './authStorage';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export async function downloadPatientReport(patientId: number): Promise<void> {
-  const token = localStorage.getItem('authToken');
+  const token = getAuthItem('authToken');
   const headers: Record<string, string> = {};
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

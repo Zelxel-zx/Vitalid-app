@@ -1,4 +1,5 @@
-import { MessageCircle, Video, Calendar } from 'lucide-react';
+import { MessageCircle, Video, Calendar, UserRound } from 'lucide-react';
+import { formatDoctorName } from '../../services/doctorService';
 
 interface DoctorCardProps {
   name: string;
@@ -10,6 +11,7 @@ interface DoctorCardProps {
 }
 
 export function DoctorCard({ name, specialty, avatar, status, unreadMessages, onClick }: DoctorCardProps) {
+  const displayName = formatDoctorName(name);
   const statusColors = {
     online: 'bg-green-500',
     offline: 'bg-gray-400',
@@ -19,20 +21,26 @@ export function DoctorCard({ name, specialty, avatar, status, unreadMessages, on
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-xl p-4 border border-gray-200 hover:border-primary hover:shadow-md transition-all cursor-pointer"
+      className="cursor-pointer rounded-xl border border-primary bg-white p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
     >
       <div className="flex items-start gap-4">
         <div className="relative">
-          <img
-            src={avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop'}
-            alt={name}
-            className="w-16 h-16 rounded-full object-cover"
-          />
+          {avatar ? (
+            <img
+              src={avatar}
+              alt={displayName}
+              className="w-16 h-16 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <UserRound size={30} />
+            </div>
+          )}
           <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${statusColors[(status?.toLowerCase() as keyof typeof statusColors) || 'offline']}`} />
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-gray-900 truncate">{name}</h3>
+          <h3 className="font-medium text-gray-900 truncate">{displayName}</h3>
           <p className="text-sm text-gray-500">{specialty}</p>
 
           <div className="flex gap-2 mt-3">

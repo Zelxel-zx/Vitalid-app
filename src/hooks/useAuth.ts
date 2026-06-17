@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { UserType } from '../types';
 import { login, register, RegisterInput } from '../services/authService';
+import {
+  clearAuthItems,
+  setAuthItem,
+} from '../services/authStorage';
 
 interface AuthState {
   isLoggedIn: boolean;
@@ -8,6 +12,34 @@ interface AuthState {
   token: string | null;
   userId: number | null;
   userName: string | null;
+  profileId: number | null;
+  needsPatientProfile: boolean;
+  needsDoctorProfile: boolean;
+}
+
+function persistAuthData(auth: {
+  id: number;
+  profileId?: number | null;
+  userType: UserType;
+  token: string;
+  name: string;
+}) {
+  setAuthItem('authToken', auth.token);
+  setAuthItem('authUserType', auth.userType);
+  setAuthItem('authUserId', auth.id.toString());
+  setAuthItem('authUserName', auth.name);
+
+  if (auth.profileId) {
+    setAuthItem('authProfileId', auth.profileId.toString());
+
+    if (auth.userType === 'patient') {
+      setAuthItem('authPatientId', auth.profileId.toString());
+    }
+
+    if (auth.userType === 'doctor') {
+      setAuthItem('authDoctorId', auth.profileId.toString());
+    }
+  }
 }
 
 export function useAuth() {
@@ -17,34 +49,43 @@ export function useAuth() {
     token: null,
     userId: null,
     userName: null,
+    profileId: null,
+    needsPatientProfile: false,
+    needsDoctorProfile: false,
   });
 
   const handleLogin = useCallback(async (email: string, password: string) => {
     const auth = await login(email, password);
+
     setAuthState({
       isLoggedIn: true,
       userType: auth.userType,
       token: auth.token,
       userId: auth.id,
       userName: auth.name,
+      profileId: auth.profileId ?? null,
+      needsPatientProfile: false,
+      needsDoctorProfile: false,
     });
-    localStorage.setItem('authToken', auth.token);
-    localStorage.setItem('authUserType', auth.userType);
-    localStorage.setItem('authUserId', auth.id.toString());
+
+    persistAuthData(auth);
   }, []);
 
   const handleRegister = useCallback(async (payload: RegisterInput) => {
     const auth = await register(payload);
+
     setAuthState({
       isLoggedIn: true,
       userType: auth.userType,
       token: auth.token,
       userId: auth.id,
       userName: auth.name,
+      profileId: auth.profileId ?? null,
+      needsPatientProfile: auth.userType === 'patient',
+      needsDoctorProfile: auth.userType === 'doctor',
     });
-    localStorage.setItem('authToken', auth.token);
-    localStorage.setItem('authUserType', auth.userType);
-    localStorage.setItem('authUserId', auth.id.toString());
+
+    persistAuthData(auth);
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -54,16 +95,18 @@ export function useAuth() {
       token: null,
       userId: null,
       userName: null,
+      profileId: null,
+      needsPatientProfile: false,
+      needsDoctorProfile: false,
     });
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('authUserType');
-    localStorage.removeItem('authUserId');
+
+    clearAuthItems();
   }, []);
 
   return {
     ...authState,
     handleLogin,
     handleRegister,
-    handleLogout
+    handleLogout,
   };
 }

@@ -8,7 +8,6 @@ export interface MedicationResponse {
   prescribedBy: string;
   startDate: string;
   endDate: string;
-  totalPills: number;
   pillsRemaining: number;
   sideEffects: string;
 }
@@ -27,7 +26,6 @@ export interface MedicationRequest {
   prescribedBy?: string;
   startDate: string;
   endDate: string;
-  totalPills: number;
 }
 
 export async function getMedicationsForPatient(userId: number): Promise<MedicationResponse[]> {
