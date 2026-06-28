@@ -444,7 +444,13 @@ function MainApp({
         )}
 
         {currentView === 'patients' && (
-          <PatientsView userId={userId} doctors={doctors} />
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Mis Pacientes</h2>
+              <p className="text-gray-600">Monitorea, prescribe tratamientos y contacta a tus pacientes</p>
+            </div>
+            <DoctorDashboard mode="patients" />
+          </div>
         )}
 
         {/* Patient messages: pick a doctor → open chat */}
@@ -507,8 +513,8 @@ function MainApp({
 
 /**
  * Doctor's inbox view.
- * Finds the doctor's own entity ID, loads their patient conversation list,
- * and opens individual conversations with proper bidirectional messaging.
+ * Fix: loads ALL patients — no longer gated on treatments.
+ * Patients who have unread messages are highlighted with a badge.
  */
 function DoctorMessagesView({
   doctors,
@@ -522,70 +528,70 @@ function DoctorMessagesView({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvedDoctorId, setResolvedDoctorId] = useState<number | null>(null);
+  // Map of patientUserId → unread count, so we can show badges
+  const [unreadByPatient, setUnreadByPatient] = useState<Record<number, number>>({});
+  const [searchTerm, setSearchTerm] = useState('');
 
   const myDoctor = doctors.find((doctor) => Number(doctor.userId) === Number(userId));
   const myDoctorId = myDoctor?.id ?? null;
 
   useEffect(() => {
     let mounted = true;
-
-    if (!userId) {
-      setPatients([]);
-      setResolvedDoctorId(null);
-      setLoading(false);
-      return () => {
-        mounted = false;
-      };
-    }
+    if (!userId) { setLoading(false); return; }
 
     setLoading(true);
 
-    Promise.all([getMyTreatments(), getAllPatients()])
-      .then(([treatments, allPatients]) => {
+    Promise.all([
+      getAllPatients(),
+      // GET /chat/unread returns [{ doctorId, unreadCount }] from sender perspective
+      // We repurpose it here: fetch unread messages addressed to this doctor (userId)
+      getJson<Array<{ senderUserId?: number; unreadCount: number }>>(`/chat/unread?receiverId=${userId}`)
+        .catch(() => [] as Array<{ senderUserId?: number; unreadCount: number }>),
+    ])
+      .then(([allPatients, unreadList]) => {
         if (!mounted) return;
 
-        const doctorIdFromTreatments =
-          treatments.find((treatment) => treatment.doctorId)?.doctorId ?? null;
+        // Build unread map: senderUserId → count
+        const unreadMap: Record<number, number> = {};
+        (unreadList as any[]).forEach((entry) => {
+          if (entry.senderUserId) unreadMap[entry.senderUserId] = entry.unreadCount;
+        });
+        setUnreadByPatient(unreadMap);
 
-        const effectiveDoctorId = myDoctorId ?? doctorIdFromTreatments;
+        // Sort: patients with unread messages first
+        const sorted = [...allPatients].sort((a, b) => {
+          const aUnread = unreadMap[a.userId] ?? 0;
+          const bUnread = unreadMap[b.userId] ?? 0;
+          return bUnread - aUnread;
+        });
 
-        setResolvedDoctorId(effectiveDoctorId);
-
-        const assignedIds = new Set(
-          treatments.map((treatment) => treatment.patientId),
-        );
-
-        setPatients(
-          allPatients.filter((patient) => assignedIds.has(patient.id)),
-        );
+        setPatients(sorted);
+        setResolvedDoctorId(myDoctorId);
       })
       .catch((error) => {
         console.error('Error loading doctor conversations:', error);
-        if (mounted) {
-          setPatients([]);
-          setResolvedDoctorId(null);
-        }
+        if (mounted) setPatients([]);
       })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
+      .finally(() => { if (mounted) setLoading(false); });
 
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [userId, myDoctorId]);
 
   useEffect(() => {
     if (!resolvedDoctorId || !selectedPatient) return;
-
     chatService
       .getMessagesForDoctor(resolvedDoctorId, selectedPatient.userId)
       .then(setChatMessages)
-      .catch((error) => {
-        console.error('Error loading selected patient chat:', error);
-        setChatMessages([]);
-      });
+      .catch(() => setChatMessages([]));
   }, [resolvedDoctorId, selectedPatient]);
+
+  const filtered = searchTerm.trim()
+    ? patients.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.email?.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    : patients;
 
   if (selectedPatient && resolvedDoctorId) {
     return (
@@ -611,55 +617,67 @@ function DoctorMessagesView({
         <p className="text-gray-600 mt-1">Conversaciones con tus pacientes</p>
       </div>
 
-      {loading && (
-        <p className="text-gray-500 text-sm">Cargando conversaciones...</p>
-      )}
+      {/* Search */}
+      <input
+        type="text"
+        placeholder="Buscar paciente..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition"
+      />
 
-      {!loading && patients.length === 0 && (
+      {loading && <p className="text-gray-500 text-sm">Cargando conversaciones...</p>}
+
+      {!loading && filtered.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-500">
           <MessageCircle size={36} className="mx-auto mb-3 opacity-40" />
-          <p className="font-medium">Sin conversaciones disponibles</p>
-          <p className="text-sm mt-1">
-            Los pacientes asignados a tus tratamientos aparecerán aquí.
-          </p>
+          <p className="font-medium">No hay pacientes registrados</p>
         </div>
       )}
 
-      {!loading && patients.length > 0 && (
+      {!loading && filtered.length > 0 && (
         <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white overflow-hidden">
-          {patients.map((patient) => (
-            <button
-              key={patient.id}
-              onClick={() => setSelectedPatient(patient)}
-              className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
-            >
-              {patient.avatar ? (
-                <img
-                  src={patient.avatar}
-                  alt={patient.name}
-                  className="h-11 w-11 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <UserRound size={22} className="text-primary" />
+          {filtered.map((patient) => {
+            const unread = unreadByPatient[patient.userId] ?? 0;
+            return (
+              <button
+                key={patient.id}
+                onClick={() => setSelectedPatient(patient)}
+                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+              >
+                {patient.avatar ? (
+                  <img
+                    src={patient.avatar}
+                    alt={patient.name}
+                    className="h-11 w-11 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <UserRound size={22} className="text-primary" />
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-gray-900">{patient.name}</p>
+                  <p className="text-sm text-gray-500 truncate">{patient.email}</p>
                 </div>
-              )}
 
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-gray-900">{patient.name}</p>
-                <p className="text-sm text-gray-500 truncate">{patient.email}</p>
-              </div>
-
-              <span className="text-xs text-primary font-medium shrink-0">
-                Abrir chat
-              </span>
-            </button>
-          ))}
+                {unread > 0 ? (
+                  <span className="flex items-center justify-center min-w-[22px] h-[22px] bg-red-500 text-white text-xs font-bold rounded-full px-1 shrink-0">
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                ) : (
+                  <span className="text-xs text-primary font-medium shrink-0">Abrir chat</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
+
 
 /**
  * Doctor's "Pacientes" view — Issues #5 & #6.
