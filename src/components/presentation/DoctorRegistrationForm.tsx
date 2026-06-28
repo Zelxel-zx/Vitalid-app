@@ -12,9 +12,11 @@ import {
   createDoctorProfile,
   CreateDoctorInput,
 } from '../../services/doctorService';
+import { uploadAvatar } from '../../services/profileService';
+import { getAuthItem } from '../../services/authStorage';
 
 interface DoctorRegistrationFormProps {
-  onComplete: () => void;
+  onAutoLogin: (token: string, id: number, name: string, userType: 'patient' | 'doctor') => void;
   onLogout: () => void;
 }
 
@@ -30,13 +32,14 @@ const initialForm: CreateDoctorInput = {
 };
 
 export function DoctorRegistrationForm({
-  onComplete,
+  onAutoLogin,
   onLogout,
 }: DoctorRegistrationFormProps) {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<FormErrors>({});
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -66,10 +69,8 @@ export function DoctorRegistrationForm({
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     setPhotoPreview(URL.createObjectURL(file));
     setPhotoName(file.name);
+    setPhotoFile(file); // Issue #3: keep File for upload
     setSubmitError(null);
-
-    // La API requiere una URL. La imagen se enviará cuando exista el servicio de subida.
-    updateField('avatar', '');
   };
 
   const validate = () => {
@@ -108,12 +109,30 @@ export function DoctorRegistrationForm({
 
     try {
       setIsSubmitting(true);
-      await createDoctorProfile({
+
+      // Issue #3: upload avatar as base64 before saving the profile
+      let avatarUrl = '';
+      if (photoFile) {
+        const userId = Number(getAuthItem('authUserId'));
+        try {
+          avatarUrl = await uploadAvatar(userId, photoFile);
+        } catch {
+          // Non-fatal: proceed without avatar
+        }
+      }
+
+      const doctor = await createDoctorProfile({
         ...form,
+        avatar: avatarUrl,
         specialty: form.specialty.trim(),
         medicalCenterAddress: form.medicalCenterAddress.trim(),
       });
-      onComplete();
+
+      // Issue #2: use the token returned by the backend to skip the login screen
+      const token = (doctor as any).token ?? getAuthItem('authToken') ?? '';
+      const name = (doctor as any).name ?? getAuthItem('authUserName') ?? '';
+      const id = (doctor as any).userId ?? doctor.id ?? Number(getAuthItem('authUserId'));
+      onAutoLogin(token, id, name, 'doctor');
     } catch (error) {
       setSubmitError(
         error instanceof Error

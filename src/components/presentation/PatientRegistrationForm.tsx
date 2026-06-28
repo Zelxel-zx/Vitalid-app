@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import {
   Camera,
   CalendarDays,
@@ -13,9 +13,12 @@ import {
   createPatient,
   CreatePatientInput,
 } from '../../services/patientService';
+import { uploadAvatar } from '../../services/profileService';
+import { getAuthItem } from '../../services/authStorage';
 
 interface PatientRegistrationFormProps {
-  onComplete: () => void;
+  /** Called when the form is done and session is established */
+  onAutoLogin: (token: string, id: number, name: string, userType: 'patient' | 'doctor') => void;
   onLogout: () => void;
 }
 
@@ -36,13 +39,14 @@ const initialForm: CreatePatientInput = {
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export function PatientRegistrationForm({
-  onComplete,
+  onAutoLogin,
   onLogout,
 }: PatientRegistrationFormProps) {
   const [form, setForm] = useState<CreatePatientInput>(initialForm);
   const [errors, setErrors] = useState<FormErrors>({});
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -69,10 +73,8 @@ export function PatientRegistrationForm({
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     setPhotoPreview(URL.createObjectURL(file));
     setPhotoName(file.name);
+    setPhotoFile(file);  // Issue #3: keep the File object for uploading
     setSubmitError(null);
-
-    // La API guarda una URL; el archivo se enviará al implementar el servicio de subida.
-    updateField('avatar', '');
   };
 
   const validate = () => {
@@ -102,8 +104,21 @@ export function PatientRegistrationForm({
 
     try {
       setIsSubmitting(true);
-      await createPatient({
+
+      // Issue #3: upload avatar first (convert to base64 data URI)
+      let avatarUrl = '';
+      if (photoFile) {
+        const userId = Number(getAuthItem('authUserId'));
+        try {
+          avatarUrl = await uploadAvatar(userId, photoFile);
+        } catch {
+          // Non-fatal: proceed without avatar
+        }
+      }
+
+      const patient = await createPatient({
         ...form,
+        avatar: avatarUrl,
         address: form.address.trim(),
         city: form.city.trim(),
         state: form.state.trim(),
@@ -111,7 +126,13 @@ export function PatientRegistrationForm({
         medicalHistory: form.medicalHistory.trim(),
         allergies: form.allergies.trim(),
       });
-      onComplete();
+
+      // Issue #2: the backend returns a fresh token after completing the profile.
+      // Use it to log in directly without a second login screen.
+      const token = (patient as any).token ?? getAuthItem('authToken') ?? '';
+      const name = (patient as any).name ?? getAuthItem('authUserName') ?? '';
+      const id = (patient as any).userId ?? patient.id ?? Number(getAuthItem('authUserId'));
+      onAutoLogin(token, id, name, 'patient');
     } catch (error) {
       setSubmitError(
         error instanceof Error

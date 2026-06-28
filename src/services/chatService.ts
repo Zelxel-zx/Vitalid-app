@@ -5,6 +5,8 @@ import { getAuthItem } from './authStorage';
 interface ChatMessageResponse {
   id: number;
   sender: string;
+  /** Issue #7 fix: backend now returns senderId so we can identify sender by ID, not by name */
+  senderId?: number | null;
   content: string;
   timestamp: string;
 }
@@ -22,21 +24,19 @@ export const chatService = {
   /**
    * Fetch messages for a conversation between the current user and a specific doctor.
    *
-   * - Called by PATIENTS: doctorId = doctor entity ID, userId = patient's user ID
-   * - Called by DOCTORS: doctorId = their own doctor entity ID, patientUserId = the other user's ID
-   *   In this case pass patientUserId explicitly so the API filters the conversation correctly.
+   * Issue #7 fix: sender is now identified by comparing senderId (number) against
+   * the current user's ID stored in localStorage. This is reliable even when the
+   * name stored in localStorage differs slightly from the DB value.
    */
   getMessagesForDoctor: async (
     doctorId: number,
     patientUserId?: number | null,
   ): Promise<ChatMessage[]> => {
-    const myUserId = getAuthItem('authUserId');
-    const myName = getAuthItem('authUserName');
+    const myUserId = Number(getAuthItem('authUserId'));
     const myType = getAuthItem('authUserType');
 
     // For patients: pass their own userId so the API returns only this patient's thread
     // For doctors:  pass the selected patient's userId (patientUserId param)
-    //               without it the API returns ALL messages which is also fine for now
     const filterUserId = myType === 'doctor' ? patientUserId : myUserId;
     const url = filterUserId
       ? `/chat/doctor/${doctorId}?userId=${filterUserId}`
@@ -45,16 +45,18 @@ export const chatService = {
     const messages: ChatMessageResponse[] = await getJson(url);
 
     return (messages || []).map((msg) => {
-      // For patients: "patient" = my name, "doctor" = anyone else
-      // For doctors: "doctor" = doctor's own name, "patient" = anyone else
+      // Primary: compare by senderId (reliable, not affected by name typos or format)
+      // Fallback: if senderId is not yet present (old data), keep old behavior
       const isMine =
-        myType === 'doctor'
-          ? msg.sender === myName
-          : msg.sender === myName;
+        msg.senderId != null
+          ? msg.senderId === myUserId
+          : msg.sender === getAuthItem('authUserName');
 
       return {
         id: String(msg.id),
-        sender: isMine ? (myType === 'doctor' ? 'doctor' : 'patient') : (myType === 'doctor' ? 'patient' : 'doctor'),
+        sender: isMine
+          ? (myType === 'doctor' ? 'doctor' : 'patient')
+          : (myType === 'doctor' ? 'patient' : 'doctor'),
         content: msg.content,
         timestamp: toTimestamp(msg.timestamp),
       };
@@ -67,19 +69,25 @@ export const chatService = {
    * - Doctor → Patient: doctorId = doctor's own entity ID, receiverUserId = patient's user ID
    */
   sendMessage: async (doctorId: number, content: string, receiverUserId?: number | null): Promise<ChatMessage> => {
-    const senderId = Number(getAuthItem('authUserId'));
+    const myUserId = Number(getAuthItem('authUserId'));
     const myType = getAuthItem('authUserType');
-    const myName = getAuthItem('authUserName') || '';
     const response: ChatMessageResponse = await postJson('/chat/send', {
       doctorId,
-      senderId,
+      senderId: myUserId,
       content,
       receiverUserId: receiverUserId ?? null,
     });
-    const isMine = response.sender === myName || response.sender == null;
+    // Use senderId for reliable sender detection
+    const isMine =
+      response.senderId != null
+        ? response.senderId === myUserId
+        : true; // we just sent it, so it's ours
+
     return {
       id: String(response.id),
-      sender: isMine ? (myType === 'doctor' ? 'doctor' : 'patient') : (myType === 'doctor' ? 'patient' : 'doctor'),
+      sender: isMine
+        ? (myType === 'doctor' ? 'doctor' : 'patient')
+        : (myType === 'doctor' ? 'patient' : 'doctor'),
       content: response.content,
       timestamp: toTimestamp(response.timestamp),
     };

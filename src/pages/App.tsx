@@ -20,7 +20,7 @@ import { ChatMessage } from '../types';
 import { getJson } from '../services/apiClient';
 import { getAuthItem } from '../services/authStorage';
 import { getProfile, PROFILE_UPDATED } from '../services/profileService';
-import { getAllPatients, PatientResponse } from '../services/patientService';
+import { getAllPatients, getPatientsByDoctor, PatientResponse } from '../services/patientService';
 import { getMyTreatments } from '../services/treatmentService';
 
 export default function App() {
@@ -33,16 +33,31 @@ export default function App() {
     handleLogin,
     handleRegister,
     handleLogout,
+    handleAutoLogin,
+    isRestoringSession,
   } = useAuth();
+
+  // Issue #4: show a loading screen while we check localStorage for an existing session
+  if (isRestoringSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
   }
 
+  // Issue #1: if profile is incomplete, FORCE the registration form regardless of how the user got here
   if (userType === 'patient' && needsPatientProfile) {
     return (
       <PatientRegistrationForm
-        onComplete={handleLogout}
+        onAutoLogin={handleAutoLogin}
         onLogout={handleLogout}
       />
     );
@@ -51,7 +66,7 @@ export default function App() {
   if (userType === 'doctor' && needsDoctorProfile) {
     return (
       <DoctorRegistrationForm
-        onComplete={handleLogout}
+        onAutoLogin={handleAutoLogin}
         onLogout={handleLogout}
       />
     );
@@ -429,13 +444,7 @@ function MainApp({
         )}
 
         {currentView === 'patients' && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Mis Pacientes</h2>
-              <p className="text-gray-600">Consulta su información clínica, tratamientos y seguimiento</p>
-            </div>
-            <DoctorPatientsView />
-          </div>
+          <PatientsView userId={userId} doctors={doctors} />
         )}
 
         {/* Patient messages: pick a doctor → open chat */}
@@ -645,6 +654,148 @@ function DoctorMessagesView({
                 Abrir chat
               </span>
             </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Doctor's "Pacientes" view — Issues #5 & #6.
+ * Toggle: "Todos" (all patients in system) vs "Mis Pacientes" (those with appointments with this doctor).
+ */
+function PatientsView({
+  userId,
+  doctors,
+}: {
+  userId: number | null;
+  doctors: DoctorSummary[];
+}) {
+  const [filterMode, setFilterMode] = useState<'all' | 'mine'>('all');
+  const [allPatients, setAllPatients] = useState<PatientResponse[]>([]);
+  const [myPatients, setMyPatients] = useState<PatientResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const myDoctor = doctors.find((d) => Number(d.userId) === Number(userId));
+  const myDoctorId = myDoctor?.id ?? null;
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+
+    const fetches: Promise<void>[] = [
+      getAllPatients().then((data) => { if (mounted) setAllPatients(data); }),
+    ];
+
+    if (myDoctorId) {
+      fetches.push(
+        getPatientsByDoctor(myDoctorId).then((data) => { if (mounted) setMyPatients(data); }),
+      );
+    }
+
+    Promise.all(fetches)
+      .catch((err) => console.error('Error loading patients:', err))
+      .finally(() => { if (mounted) setLoading(false); });
+
+    return () => { mounted = false; };
+  }, [myDoctorId]);
+
+  const displayed = filterMode === 'mine' ? myPatients : allPatients;
+  const filtered = searchTerm.trim()
+    ? displayed.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.email?.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    : displayed;
+
+  return (
+    <div className="space-y-6">
+      {/* Header + filter toggle */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900">Pacientes</h2>
+          <p className="text-gray-600 text-sm mt-1">
+            {filterMode === 'all'
+              ? `${filtered.length} pacientes registrados en el sistema`
+              : `${filtered.length} pacientes con citas contigo`}
+          </p>
+        </div>
+        <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
+          <button
+            onClick={() => setFilterMode('all')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              filterMode === 'all' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => setFilterMode('mine')}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-l border-gray-200 ${
+              filterMode === 'mine' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Mis Pacientes
+          </button>
+        </div>
+      </div>
+
+      {/* Search */}
+      <input
+        type="text"
+        placeholder="Buscar por nombre o correo..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition"
+      />
+
+      {loading && <p className="text-gray-500 text-sm">Cargando pacientes...</p>}
+
+      {!loading && filtered.length === 0 && (
+        <div className="rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-500">
+          <Users size={36} className="mx-auto mb-3 opacity-40" />
+          <p className="font-medium">
+            {filterMode === 'mine'
+              ? 'Aún no tienes pacientes con citas registradas'
+              : 'No se encontraron pacientes'}
+          </p>
+        </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filtered.map((patient) => (
+            <div
+              key={patient.id}
+              className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-primary/40 transition-colors"
+            >
+              {patient.avatar ? (
+                <img
+                  src={patient.avatar}
+                  alt={patient.name}
+                  className="h-12 w-12 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <UserRound size={24} className="text-primary" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-gray-900 truncate">{patient.name}</p>
+                <p className="text-sm text-gray-500 truncate">{patient.email}</p>
+                {patient.bloodType && (
+                  <span className="inline-block mt-1 text-xs bg-red-50 text-red-600 font-medium px-2 py-0.5 rounded-full">
+                    {patient.bloodType}
+                  </span>
+                )}
+              </div>
+              {patient.city && (
+                <p className="text-xs text-gray-400 shrink-0">{patient.city}</p>
+              )}
+            </div>
           ))}
         </div>
       )}

@@ -53,3 +53,10 @@ export async function createPatient(input: CreatePatientInput): Promise<PatientR
   const response = await postJson<ApiResponse<PatientResponse>>('/patients', input);
   return response.data;
 }
+
+/** Issue #5: fetch patients that have had at least one appointment with the given doctor */
+export async function getPatientsByDoctor(doctorId: number): Promise<PatientResponse[]> {
+  const response = await getJson<ApiResponse<PatientResponse[]>>(`/patients/by-doctor/${doctorId}`);
+  return response.data || [];
+}
+
