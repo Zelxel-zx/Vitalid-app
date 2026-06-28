@@ -117,24 +117,31 @@ export function DoctorDashboard({
       const appointmentData = currentDoctor
         ? await getAppointmentsForDoctor(currentDoctor.id)
         : [];
-      const assignedPatientIds = new Set(
-        treatmentData.map((treatment) => treatment.patientId),
-      );
-      appointmentData
-        .filter(isFinishedAppointment)
-        .forEach((appointment) => assignedPatientIds.add(appointment.patientId));
+
+      // "patients" mode: show ALL patients so the doctor can prescribe to anyone
+      // "overview" mode: only show patients with treatments or finished appointments (monitoring)
+      let patientsToMap: PatientResponse[];
+      if (mode === 'patients') {
+        patientsToMap = patientData;
+      } else {
+        const assignedPatientIds = new Set(
+          treatmentData.map((treatment) => treatment.patientId),
+        );
+        appointmentData
+          .filter(isFinishedAppointment)
+          .forEach((appointment) => assignedPatientIds.add(appointment.patientId));
+        patientsToMap = patientData.filter((patient) => assignedPatientIds.has(patient.id));
+      }
 
       const mapped = await Promise.all(
-        patientData
-          .filter((patient) => assignedPatientIds.has(patient.id))
-          .map((patient) =>
-            buildDoctorPatient(
-              patient,
-              treatmentData.filter(
-                (treatment) => treatment.patientId === patient.id,
-              ),
+        patientsToMap.map((patient) =>
+          buildDoctorPatient(
+            patient,
+            treatmentData.filter(
+              (treatment) => treatment.patientId === patient.id,
             ),
           ),
+        ),
       );
       setPatients(mapped);
     } catch (err) {
@@ -148,6 +155,7 @@ export function DoctorDashboard({
       if (showLoading) setIsLoading(false);
     }
   };
+
 
   useEffect(() => {
     loadPatients();
