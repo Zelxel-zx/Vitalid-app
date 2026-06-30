@@ -27,6 +27,11 @@ export interface RegisterInput {
   userType: 'patient' | 'doctor';
 }
 
+export interface RecoverPasswordInput {
+  email: string;
+  newPassword: string;
+}
+
 export async function login(email: string, password: string): Promise<LoginResult> {
   const response = await postJson<AuthPayload>('/auth/login', {
     email,
@@ -46,6 +51,13 @@ export async function register(input: RegisterInput): Promise<LoginResult> {
   });
 
   return normalizeAuth(response.data);
+}
+
+export async function recoverPassword(input: RecoverPasswordInput): Promise<void> {
+  await postJson('/auth/recover', {
+    email: input.email,
+    newPassword: input.newPassword,
+  });
 }
 
 function normalizeAuth(data: AuthPayload): LoginResult {

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Mail, Lock, User, Phone } from 'lucide-react';
+import { Mail, Lock, User, Phone, X } from 'lucide-react';
 import logo from '../../images/Logo (1).svg';
 import heroImage from '../../images/Rectangle 24.svg';
+import { recoverPassword } from '../../services/authService';
 
 interface LoginScreenProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -29,6 +30,13 @@ export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
     phone?: string;
   }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showRecoverForm, setShowRecoverForm] = useState(false);
+  const [recoverEmail, setRecoverEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [recoverError, setRecoverError] = useState<string | null>(null);
+  const [recoverMessage, setRecoverMessage] = useState<string | null>(null);
+  const [isRecovering, setIsRecovering] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +75,52 @@ export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
       setError(message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openRecoverForm = () => {
+    setRecoverEmail(email);
+    setNewPassword('');
+    setConfirmPassword('');
+    setRecoverError(null);
+    setRecoverMessage(null);
+    setShowRecoverForm(true);
+  };
+
+  const handleRecoverPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setRecoverError(null);
+    setRecoverMessage(null);
+
+    if (!/^\S+@\S+\.\S+$/.test(recoverEmail)) {
+      setRecoverError('Ingresa un correo electrónico válido.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setRecoverError('La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setRecoverError('Las contraseñas no coinciden.');
+      return;
+    }
+
+    try {
+      setIsRecovering(true);
+      await recoverPassword({
+        email: recoverEmail,
+        newPassword,
+      });
+      setRecoverMessage('Contraseña actualizada. Ya puedes iniciar sesión.');
+      setPassword('');
+    } catch (err) {
+      setRecoverError(
+        err instanceof Error
+          ? err.message
+          : 'No pudimos actualizar la contraseña.',
+      );
+    } finally {
+      setIsRecovering(false);
     }
   };
 
@@ -229,13 +283,114 @@ export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
 
         {isLogin && (
           <div className="mt-4 text-center">
-            <a href="#" className="text-sm text-primary hover:opacity-80 font-medium">
+            <button
+              type="button"
+              onClick={openRecoverForm}
+              className="text-sm text-primary hover:opacity-80 font-medium"
+            >
               ¿Olvidaste tu contraseña?
-            </a>
+            </button>
           </div>
         )}
         </div>
       </div>
+
+      {showRecoverForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Recuperar contraseña
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Ingresa tu correo y define una nueva contraseña.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRecoverForm(false)}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Cerrar recuperación de contraseña"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleRecoverPassword} className="space-y-4">
+              {recoverError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {recoverError}
+                </div>
+              )}
+              {recoverMessage && (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  {recoverMessage}
+                </div>
+              )}
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Correo electrónico
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="email"
+                    value={recoverEmail}
+                    onChange={(event) => setRecoverEmail(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-gray-100 py-3 pl-10 pr-4 transition focus:border-primary focus:bg-white focus:outline-none"
+                    placeholder="user@email.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Nueva contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-gray-100 py-3 pl-10 pr-4 transition focus:border-primary focus:bg-white focus:outline-none"
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Confirmar contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-gray-100 py-3 pl-10 pr-4 transition focus:border-primary focus:bg-white focus:outline-none"
+                    placeholder="Repite tu nueva contraseña"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isRecovering}
+                className="w-full rounded-lg bg-primary py-3 text-lg font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {isRecovering ? 'Actualizando...' : 'Actualizar contraseña'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
