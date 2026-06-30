@@ -66,7 +66,7 @@ export function useAuth() {
    */
   const handleLogin = useCallback(async (email: string, password: string) => {
     const auth = await login(email, password);
-    const isCompleted = (auth as any).profileCompleted ?? false;
+    const isCompleted = auth.profileCompleted;
 
     setAuthState({
       isLoggedIn: true,

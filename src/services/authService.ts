@@ -6,6 +6,7 @@ interface AuthPayload {
   email: string;
   type: 'PATIENT' | 'DOCTOR';
   token: string;
+  profileCompleted?: boolean;
   message?: string;
 }
 
@@ -15,6 +16,7 @@ export interface LoginResult {
   email: string;
   userType: 'patient' | 'doctor';
   token: string;
+  profileCompleted: boolean;
 }
 
 export interface RegisterInput {
@@ -53,5 +55,6 @@ function normalizeAuth(data: AuthPayload): LoginResult {
     email: data.email,
     token: data.token,
     userType: data.type === 'DOCTOR' ? 'doctor' : 'patient',
+    profileCompleted: Boolean(data.profileCompleted),
   };
 }
