@@ -13,3 +13,4 @@ export { PatientRegistrationForm } from './PatientRegistrationForm';
 export { DoctorRegistrationForm } from './DoctorRegistrationForm';
 export { TreatmentsView } from './TreatmentsView';
 export { TreatmentChecklistView } from './TreatmentChecklistView';
+export { AiChatBubble } from './AiChatBubble';
