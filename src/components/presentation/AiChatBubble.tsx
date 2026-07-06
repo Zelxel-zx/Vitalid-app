@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Bot, Loader2, MessageCircle, Send, X } from 'lucide-react';
-import { askAi } from '../../services/aiChatService';
+import { AiAppointmentAction, askAi, confirmAiAppointment } from '../../services/aiChatService';
 
 type AiMessage = {
   id: number;
@@ -13,7 +13,7 @@ const initialMessages: AiMessage[] = [
     id: 1,
     role: 'assistant',
     content:
-      'Hola, soy el asistente médico informativo de Vitalid. Puedo orientarte con información general, pero no reemplazo a un médico.',
+      'Hola, soy el asistente medico informativo de Vitalid. Puedo orientarte con informacion general y ayudarte a agendar una cita.',
   },
 ];
 
@@ -23,6 +23,7 @@ export function AiChatBubble() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [pendingAction, setPendingAction] = useState<AiAppointmentAction | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -31,43 +32,59 @@ export function AiChatBubble() {
     }
   }, [messages, isOpen]);
 
+  const addAssistantMessage = (content: string) => {
+    setMessages((current) => [
+      ...current,
+      {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        role: 'assistant',
+        content,
+      },
+    ]);
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
 
-    const userMessage: AiMessage = {
-      id: Date.now(),
-      role: 'user',
-      content: trimmed,
-    };
-    setMessages((current) => [...current, userMessage]);
+    setMessages((current) => [
+      ...current,
+      {
+        id: Date.now(),
+        role: 'user',
+        content: trimmed,
+      },
+    ]);
     setInput('');
     setError('');
     setIsLoading(true);
 
     try {
-      const response = await askAi(trimmed);
-      setMessages((current) => [
-        ...current,
-        {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: response.reply,
-        },
-      ]);
+      if (pendingAction && isConfirmationIntent(trimmed) && pendingAction.missing.length === 0) {
+        const appointment = await confirmAiAppointment(pendingAction);
+        setPendingAction(null);
+        addAssistantMessage(
+          `Cita confirmada con ${appointment.doctorName} el ${appointment.date} a las ${appointment.time}.`,
+        );
+        return;
+      }
+
+      if (pendingAction && isCancelIntent(trimmed)) {
+        setPendingAction(null);
+        addAssistantMessage('Listo, cancele el agendamiento.');
+        return;
+      }
+
+      const response = await askAi(trimmed, pendingAction);
+      setPendingAction(response.pendingAction ?? null);
+      addAssistantMessage(response.reply);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo contactar al asistente.';
       setError(message);
-      setMessages((current) => [
-        ...current,
-        {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content:
-            'No pude responder en este momento. Revisa la conexión o intenta nuevamente en unos segundos.',
-        },
-      ]);
+      addAssistantMessage(
+        'No pude responder en este momento. Revisa la conexion o intenta nuevamente en unos segundos.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +101,7 @@ export function AiChatBubble() {
               </div>
               <div>
                 <p className="font-semibold leading-tight">Asistente Vitalid</p>
-                <p className="text-xs text-white/80">Orientación médica general</p>
+                <p className="text-xs text-white/80">Orientacion medica y citas</p>
               </div>
             </div>
             <button
@@ -97,7 +114,7 @@ export function AiChatBubble() {
           </div>
 
           <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-            Esta IA no diagnostica ni reemplaza una consulta médica. Ante señales de alarma, busca atención de emergencia.
+            Esta IA no diagnostica ni reemplaza una consulta medica. Ante senales de alarma, busca atencion de emergencia.
           </div>
 
           <div className="max-h-[min(460px,60vh)] space-y-3 overflow-y-auto bg-gray-50 px-4 py-4">
@@ -139,7 +156,7 @@ export function AiChatBubble() {
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Escribe tu consulta médica..."
+              placeholder={pendingAction ? 'Confirma, cancela o completa tu cita...' : 'Consulta medica o agenda una cita...'}
               className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
             />
             <button
@@ -163,4 +180,12 @@ export function AiChatBubble() {
       </button>
     </div>
   );
+}
+
+function isConfirmationIntent(message: string) {
+  return /\b(si|sí|confirmo|confirmar|ok|dale|acepto|agenda|agendala|agéndala)\b/i.test(message);
+}
+
+function isCancelIntent(message: string) {
+  return /\b(cancelar|cancela|olvida|salir|no)\b/i.test(message);
 }
