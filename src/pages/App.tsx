@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Home, MessageSquare, Activity, User, UserRound, Menu, X, ClipboardList, Calendar, Users, MessageCircle } from 'lucide-react';
-import { LoginScreen, DoctorCard, ChatInterface, ProgressChart, TreatmentsView, AppointmentBooking, AppointmentHistory, DoctorDashboard, DoctorPatientsView, PatientRegistrationForm, DoctorRegistrationForm } from '../components/presentation';
+import { LoginScreen, DoctorCard, ChatInterface, ProgressChart, TreatmentsView, AppointmentBooking, AppointmentHistory, DoctorDashboard, DoctorPatientsView, PatientRegistrationForm, DoctorRegistrationForm, AiChatBubble } from '../components/presentation';
 import { ProfileView } from '../components/presentation/ProfileView';
 import { IncomingCallModal } from '../components/presentation/IncomingCallModal';
 import { JitsiCallModal } from '../components/presentation/JitsiCallModal';
@@ -507,6 +507,8 @@ function MainApp({
           onClose={handleGlobalCallEnd}
         />
       )}
+
+      <AiChatBubble />
     </div>
   );
 }
