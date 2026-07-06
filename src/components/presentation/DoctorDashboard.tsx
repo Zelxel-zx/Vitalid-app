@@ -7,7 +7,10 @@ import {
   Mail,
   MessageSquare,
   Pill,
+  Plus,
   Search,
+  StickyNote,
+  Trash2,
   TriangleAlert,
   X,
 } from 'lucide-react';
@@ -28,6 +31,12 @@ import {
   TreatmentChecklist,
 } from '../../services/checklistService';
 import { downloadPatientReportById } from '../../services/reportService';
+import {
+  createPatientNote,
+  deletePatientNote,
+  getPatientNotes,
+  PatientNote,
+} from '../../services/patientNoteService';
 
 type RiskLevel = 'high' | 'medium' | 'low';
 
@@ -81,6 +90,11 @@ export function DoctorDashboard({
   const [effectsPatient, setEffectsPatient] = useState<DoctorPatient | null>(
     null,
   );
+  const [notesPatient, setNotesPatient] = useState<DoctorPatient | null>(null);
+  const [patientNotes, setPatientNotes] = useState<PatientNote[]>([]);
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteContent, setNoteContent] = useState('');
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [prescriptionMode, setPrescriptionMode] = useState<
     'treatments' | 'new-treatment' | 'new-medication'
   >('treatments');
@@ -323,6 +337,66 @@ export function DoctorDashboard({
     resetForms();
   };
 
+  const openNotesPanel = async (patient: DoctorPatient) => {
+    setNotesPatient(patient);
+    setNoteTitle('');
+    setNoteContent('');
+    setIsLoadingNotes(true);
+    try {
+      setError(null);
+      setPatientNotes(await getPatientNotes(patient.patient.id));
+    } catch (err) {
+      console.error('Error loading patient notes:', err);
+      setPatientNotes([]);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'No se pudieron cargar las notas del paciente.',
+      );
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  };
+
+  const closeNotesPanel = () => {
+    setNotesPatient(null);
+    setPatientNotes([]);
+    setNoteTitle('');
+    setNoteContent('');
+  };
+
+  const handleCreateNote = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!notesPatient) return;
+
+    try {
+      setIsSaving(true);
+      setError(null);
+      const created = await createPatientNote({
+        patientId: notesPatient.patient.id,
+        title: noteTitle,
+        content: noteContent,
+      });
+      setPatientNotes((current) => [created, ...current]);
+      setNoteTitle('');
+      setNoteContent('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar la nota.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: number) => {
+    try {
+      setError(null);
+      await deletePatientNote(noteId);
+      setPatientNotes((current) => current.filter((note) => note.id !== noteId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo eliminar la nota.');
+    }
+  };
+
   const handleDownloadMedicalHistory = async (patient: PatientResponse) => {
     try {
       setError(null);
@@ -396,6 +470,7 @@ export function DoctorDashboard({
                 onDownloadHistory={() =>
                   handleDownloadMedicalHistory(patient.patient)
                 }
+                onOpenNotes={() => openNotesPanel(patient)}
               />
             ))}
           </div>
@@ -425,6 +500,22 @@ export function DoctorDashboard({
           <SideEffectsPanel
             patient={effectsPatient}
             onClose={() => setEffectsPatient(null)}
+          />
+        )}
+
+        {notesPatient && (
+          <PatientNotesPanel
+            patient={notesPatient}
+            notes={patientNotes}
+            title={noteTitle}
+            content={noteContent}
+            isLoading={isLoadingNotes}
+            isSaving={isSaving}
+            onTitleChange={setNoteTitle}
+            onContentChange={setNoteContent}
+            onSubmit={handleCreateNote}
+            onDelete={handleDeleteNote}
+            onClose={closeNotesPanel}
           />
         )}
       </div>
@@ -479,6 +570,7 @@ export function DoctorDashboard({
                 onDownloadHistory={() =>
                   handleDownloadMedicalHistory(patient.patient)
                 }
+                onOpenNotes={() => openNotesPanel(patient)}
                 onContact={() => {
                   setContactPatient(patient);
                   setEmailSubject(`Seguimiento - ${patient.patient.name}`);
@@ -524,6 +616,7 @@ export function DoctorDashboard({
                 onDownloadHistory={() =>
                   handleDownloadMedicalHistory(patient.patient)
                 }
+                onOpenNotes={() => openNotesPanel(patient)}
               />
             ))}
           </div>
@@ -554,6 +647,22 @@ export function DoctorDashboard({
         <SideEffectsPanel
           patient={effectsPatient}
           onClose={() => setEffectsPatient(null)}
+        />
+      )}
+
+      {notesPatient && (
+        <PatientNotesPanel
+          patient={notesPatient}
+          notes={patientNotes}
+          title={noteTitle}
+          content={noteContent}
+          isLoading={isLoadingNotes}
+          isSaving={isSaving}
+          onTitleChange={setNoteTitle}
+          onContentChange={setNoteContent}
+          onSubmit={handleCreateNote}
+          onDelete={handleDeleteNote}
+          onClose={closeNotesPanel}
         />
       )}
 
@@ -756,12 +865,14 @@ function CriticalPatientCard({
   onPrescribe,
   onShowEffects,
   onDownloadHistory,
+  onOpenNotes,
   onContact,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
   onDownloadHistory: () => void;
+  onOpenNotes: () => void;
   onContact?: () => void;
 }) {
   return (
@@ -812,6 +923,7 @@ function CriticalPatientCard({
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
             onDownloadHistory={onDownloadHistory}
+            onOpenNotes={onOpenNotes}
             onContact={onContact}
           />
         </div>
@@ -825,11 +937,13 @@ function PatientRow({
   onPrescribe,
   onShowEffects,
   onDownloadHistory,
+  onOpenNotes,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
   onDownloadHistory: () => void;
+  onOpenNotes: () => void;
 }) {
   return (
     <div className="rounded-xl border border-primary bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
@@ -863,6 +977,7 @@ function PatientRow({
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
             onDownloadHistory={onDownloadHistory}
+            onOpenNotes={onOpenNotes}
           />
         </div>
       </div>
@@ -875,11 +990,13 @@ function DetailedPatientCard({
   onPrescribe,
   onShowEffects,
   onDownloadHistory,
+  onOpenNotes,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
   onDownloadHistory: () => void;
+  onOpenNotes: () => void;
 }) {
   const activeTreatments = data.treatments.filter(
     (treatment) => treatment.status?.toUpperCase() === 'ACTIVE',
@@ -1006,6 +1123,7 @@ function DetailedPatientCard({
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
             onDownloadHistory={onDownloadHistory}
+            onOpenNotes={onOpenNotes}
           />
         </div>
       </div>
@@ -1029,12 +1147,14 @@ function PatientActions({
   onPrescribe,
   onShowEffects,
   onDownloadHistory,
+  onOpenNotes,
   onContact,
 }: {
   critical?: boolean;
   onPrescribe: () => void;
   onShowEffects: () => void;
   onDownloadHistory: () => void;
+  onOpenNotes: () => void;
   onContact?: () => void;
 }) {
   return (
@@ -1065,6 +1185,14 @@ function PatientActions({
       >
         <FileText size={17} />
         Historial médico
+      </button>
+      <button
+        type="button"
+        onClick={onOpenNotes}
+        className="flex items-center gap-2 rounded-lg border border-primary px-4 py-2 text-sm text-primary hover:bg-primary/5"
+      >
+        <StickyNote size={17} />
+        Notas
       </button>
       <button
         type="button"
@@ -1330,6 +1458,125 @@ function MedicationFields({
         value={form.instructions}
         onChange={(instructions) => onChange({ ...form, instructions })}
       />
+    </div>
+  );
+}
+
+function PatientNotesPanel({
+  patient,
+  notes,
+  title,
+  content,
+  isLoading,
+  isSaving,
+  onTitleChange,
+  onContentChange,
+  onSubmit,
+  onDelete,
+  onClose,
+}: {
+  patient: DoctorPatient;
+  notes: PatientNote[];
+  title: string;
+  content: string;
+  isLoading: boolean;
+  isSaving: boolean;
+  onTitleChange: (value: string) => void;
+  onContentChange: (value: string) => void;
+  onSubmit: (event: FormEvent) => void;
+  onDelete: (noteId: number) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900">
+              Notas de {patient.patient.name}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Registra observaciones clínicas, expresiones relevantes y contexto
+              personal del paciente.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"
+          >
+            <X size={21} />
+          </button>
+        </div>
+
+        <form onSubmit={onSubmit} className="mb-6 rounded-xl bg-gray-50 p-4">
+          <div className="mb-3 flex items-center gap-2 text-gray-900">
+            <Plus size={18} />
+            <h4 className="font-semibold">Nueva nota</h4>
+          </div>
+          <div className="space-y-3">
+            <TextInput
+              label="Titulo"
+              value={title}
+              onChange={onTitleChange}
+              placeholder="Ej. Sesion inicial, detonantes, entorno familiar"
+            />
+            <TextArea
+              label="Nota"
+              value={content}
+              onChange={onContentChange}
+            />
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="w-full rounded-lg bg-primary px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {isSaving ? 'Guardando...' : 'Guardar nota'}
+            </button>
+          </div>
+        </form>
+
+        {isLoading ? (
+          <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-500">
+            Cargando notas...
+          </p>
+        ) : notes.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-gray-300 p-5 text-center text-sm text-gray-500">
+            Aun no hay notas registradas para este paciente.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {notes.map((note) => (
+              <article
+                key={note.id}
+                className="rounded-xl border border-gray-200 bg-white p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="font-semibold text-gray-900">
+                      {note.title}
+                    </h4>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {formatDateTime(note.createdAt)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(note.id)}
+                    className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+                    title="Eliminar nota"
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                </div>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+                  {note.content}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1619,5 +1866,18 @@ function formatDisplayDate(date?: string) {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+  });
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return 'Fecha no registrada';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString('es-PE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
