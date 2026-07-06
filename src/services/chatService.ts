@@ -1,6 +1,8 @@
-import { getJson, postJson, uploadFile } from './apiClient';
+import { getJson, postJson, request, uploadFile } from './apiClient';
 import { ChatMessage } from '../types';
 import { getAuthItem } from './authStorage';
+
+export const CHAT_UNREAD_UPDATED = 'vitalid:chat-unread-updated';
 
 interface ChatMessageResponse {
   id: number;
@@ -9,6 +11,12 @@ interface ChatMessageResponse {
   senderId?: number | null;
   content: string;
   timestamp: string;
+}
+
+export interface UnreadConversation {
+  doctorId: number | null;
+  senderUserId: number | null;
+  unreadCount: number;
 }
 
 function toTimestamp(iso: string | null): string {
@@ -63,6 +71,30 @@ export const chatService = {
     });
   },
 
+  getUnreadConversations: async (receiverId: number): Promise<UnreadConversation[]> => {
+    return getJson<UnreadConversation[]>(`/chat/unread?receiverId=${receiverId}`);
+  },
+
+  markMessagesAsRead: async (
+    doctorId: number,
+    patientUserId?: number | null,
+  ): Promise<void> => {
+    const myUserId = Number(getAuthItem('authUserId'));
+    const myType = getAuthItem('authUserType');
+    const query = new URLSearchParams({
+      receiverId: String(myUserId),
+    });
+
+    if (myType === 'doctor' && patientUserId) {
+      query.set('senderUserId', String(patientUserId));
+    }
+
+    await request(`/chat/read/${doctorId}?${query}`, {
+      method: 'PUT',
+    });
+    notifyUnreadUpdated();
+  },
+
   /**
    * Send a text message.
    * - Patient → Doctor: doctorId = doctor entity ID, receiverUserId = undefined
@@ -77,6 +109,7 @@ export const chatService = {
       content,
       receiverUserId: receiverUserId ?? null,
     });
+    notifyUnreadUpdated();
     // Use senderId for reliable sender detection
     const isMine =
       response.senderId != null
@@ -102,3 +135,7 @@ export const chatService = {
     return response.url;
   },
 };
+
+function notifyUnreadUpdated() {
+  window.dispatchEvent(new Event(CHAT_UNREAD_UPDATED));
+}

@@ -27,6 +27,7 @@ import {
   getTreatmentChecklist,
   TreatmentChecklist,
 } from '../../services/checklistService';
+import { downloadPatientReportById } from '../../services/reportService';
 
 type RiskLevel = 'high' | 'medium' | 'low';
 
@@ -107,50 +108,85 @@ export function DoctorDashboard({
     try {
       if (showLoading) setIsLoading(true);
       setError(null);
-      const [patientData, treatmentData, doctorData] = await Promise.all([
+      const [patientsResult, treatmentsResult, doctorsResult] =
+        await Promise.allSettled([
         getAllPatients(),
         getMyTreatments(),
         getAllDoctors(),
       ]);
+
+      if (patientsResult.status === 'rejected') {
+        throw new Error(getDoctorDashboardError(patientsResult.reason));
+      }
+      if (doctorsResult.status === 'rejected') {
+        throw new Error(getDoctorDashboardError(doctorsResult.reason));
+      }
+
+      const patientData = patientsResult.value;
+      const doctorData = doctorsResult.value;
+      const warnings: string[] = [];
+      const treatmentData =
+        treatmentsResult.status === 'fulfilled' ? treatmentsResult.value : [];
+      if (treatmentsResult.status === 'rejected') {
+        console.error('Error loading doctor treatments:', treatmentsResult.reason);
+        warnings.push(
+          'No se pudieron cargar los tratamientos en este momento. Por favor, recarga la página.',
+        );
+      }
+
       const authUserId = Number(getAuthItem('authUserId'));
       const currentDoctor = doctorData.find((doctor) => doctor.userId === authUserId);
-      const appointmentData = currentDoctor
-        ? await getAppointmentsForDoctor(currentDoctor.id)
-        : [];
-
-      // "patients" mode: show ALL patients so the doctor can prescribe to anyone
-      // "overview" mode: only show patients with treatments or finished appointments (monitoring)
-      let patientsToMap: PatientResponse[];
-      if (mode === 'patients') {
-        patientsToMap = patientData;
-      } else {
-        const assignedPatientIds = new Set(
-          treatmentData.map((treatment) => treatment.patientId),
+      if (!currentDoctor) {
+        throw new Error(
+          'No pudimos identificar tu perfil médico. Vuelve a iniciar sesión o completa tu perfil.',
         );
-        appointmentData
-          .filter(isFinishedAppointment)
-          .forEach((appointment) => assignedPatientIds.add(appointment.patientId));
-        patientsToMap = patientData.filter((patient) => assignedPatientIds.has(patient.id));
       }
+
+      let appointmentData: Awaited<ReturnType<typeof getAppointmentsForDoctor>> = [];
+      try {
+        appointmentData = await getAppointmentsForDoctor(currentDoctor.id);
+      } catch (appointmentsError) {
+        console.error('Error loading doctor appointments:', appointmentsError);
+        warnings.push(
+          'No se pudieron cargar las citas en este momento. Por favor, recarga la página.',
+        );
+      }
+
+      const assignedPatientIds = new Set(
+        treatmentData
+          .filter((treatment) =>
+            treatment.doctorId === currentDoctor.id,
+          )
+          .map((treatment) => treatment.patientId),
+      );
+      appointmentData
+        .filter((appointment) => appointment.status?.toUpperCase() !== 'CANCELLED')
+        .forEach((appointment) => assignedPatientIds.add(appointment.patientId));
+
+      const patientsToMap = patientData.filter((patient) =>
+        assignedPatientIds.has(patient.id),
+      );
 
       const mapped = await Promise.all(
         patientsToMap.map((patient) =>
           buildDoctorPatient(
             patient,
             treatmentData.filter(
-              (treatment) => treatment.patientId === patient.id,
+              (treatment) =>
+                treatment.patientId === patient.id
+                && (!currentDoctor || treatment.doctorId === currentDoctor.id),
             ),
           ),
         ),
       );
       setPatients(mapped);
+      if (warnings.length > 0) {
+        setError(warnings.join(' '));
+      }
     } catch (err) {
       console.error('Error loading doctor dashboard:', err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo cargar el monitoreo de pacientes.',
-      );
+      setPatients([]);
+      setError(getDoctorDashboardError(err));
     } finally {
       if (showLoading) setIsLoading(false);
     }
@@ -287,6 +323,20 @@ export function DoctorDashboard({
     resetForms();
   };
 
+  const handleDownloadMedicalHistory = async (patient: PatientResponse) => {
+    try {
+      setError(null);
+      await downloadPatientReportById(patient.id, patient.name);
+    } catch (err) {
+      console.error('Error downloading patient medical history:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'No se pudo descargar el historial medico del paciente.',
+      );
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="py-10 text-center text-gray-500">
@@ -343,6 +393,9 @@ export function DoctorDashboard({
                 data={patient}
                 onPrescribe={() => openPrescriptionPanel(patient)}
                 onShowEffects={() => setEffectsPatient(patient)}
+                onDownloadHistory={() =>
+                  handleDownloadMedicalHistory(patient.patient)
+                }
               />
             ))}
           </div>
@@ -423,6 +476,9 @@ export function DoctorDashboard({
                 data={patient}
                 onPrescribe={() => openPrescriptionPanel(patient)}
                 onShowEffects={() => setEffectsPatient(patient)}
+                onDownloadHistory={() =>
+                  handleDownloadMedicalHistory(patient.patient)
+                }
                 onContact={() => {
                   setContactPatient(patient);
                   setEmailSubject(`Seguimiento - ${patient.patient.name}`);
@@ -465,6 +521,9 @@ export function DoctorDashboard({
                 data={patient}
                 onPrescribe={() => openPrescriptionPanel(patient)}
                 onShowEffects={() => setEffectsPatient(patient)}
+                onDownloadHistory={() =>
+                  handleDownloadMedicalHistory(patient.patient)
+                }
               />
             ))}
           </div>
@@ -657,26 +716,6 @@ function calculateRisk(missedDoses: number): RiskLevel {
   return 'low';
 }
 
-function isFinishedAppointment(appointment: {
-  date: string;
-  time: string;
-  status: string;
-}) {
-  if (appointment.status?.toUpperCase() === 'CANCELLED') {
-    return false;
-  }
-  if (!appointment.date || !appointment.time) {
-    return false;
-  }
-
-  const appointmentEnd = new Date(`${appointment.date}T${appointment.time}`);
-  if (Number.isNaN(appointmentEnd.getTime())) {
-    return false;
-  }
-  appointmentEnd.setMinutes(appointmentEnd.getMinutes() + 30);
-  return appointmentEnd <= new Date();
-}
-
 function RiskSummary({
   level,
   title,
@@ -716,11 +755,13 @@ function CriticalPatientCard({
   data,
   onPrescribe,
   onShowEffects,
+  onDownloadHistory,
   onContact,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onDownloadHistory: () => void;
   onContact?: () => void;
 }) {
   return (
@@ -770,6 +811,7 @@ function CriticalPatientCard({
             critical
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
+            onDownloadHistory={onDownloadHistory}
             onContact={onContact}
           />
         </div>
@@ -782,10 +824,12 @@ function PatientRow({
   data,
   onPrescribe,
   onShowEffects,
+  onDownloadHistory,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onDownloadHistory: () => void;
 }) {
   return (
     <div className="rounded-xl border border-primary bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
@@ -818,6 +862,7 @@ function PatientRow({
           <PatientActions
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
+            onDownloadHistory={onDownloadHistory}
           />
         </div>
       </div>
@@ -829,10 +874,12 @@ function DetailedPatientCard({
   data,
   onPrescribe,
   onShowEffects,
+  onDownloadHistory,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onDownloadHistory: () => void;
 }) {
   const activeTreatments = data.treatments.filter(
     (treatment) => treatment.status?.toUpperCase() === 'ACTIVE',
@@ -958,6 +1005,7 @@ function DetailedPatientCard({
           <PatientActions
             onPrescribe={onPrescribe}
             onShowEffects={onShowEffects}
+            onDownloadHistory={onDownloadHistory}
           />
         </div>
       </div>
@@ -980,11 +1028,13 @@ function PatientActions({
   critical = false,
   onPrescribe,
   onShowEffects,
+  onDownloadHistory,
   onContact,
 }: {
   critical?: boolean;
   onPrescribe: () => void;
   onShowEffects: () => void;
+  onDownloadHistory: () => void;
   onContact?: () => void;
 }) {
   return (
@@ -1009,9 +1059,9 @@ function PatientActions({
       </button>
       <button
         type="button"
-        disabled
-        className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 opacity-50"
-        title="Disponible próximamente"
+        onClick={onDownloadHistory}
+        className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        title="Descargar historial medico"
       >
         <FileText size={17} />
         Historial médico
@@ -1514,6 +1564,29 @@ function FormActions({
       </button>
     </div>
   );
+}
+
+function getDoctorDashboardError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || '');
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes('unauthorized') ||
+    normalized.includes('forbidden') ||
+    normalized.includes('access denied') ||
+    normalized.includes('401') ||
+    normalized.includes('403') ||
+    normalized.includes('sesión') ||
+    normalized.includes('session')
+  ) {
+    return 'No pudimos cargar los datos de tu cuenta médica por un problema de sesión o permisos. Vuelve a iniciar sesión y recarga la página.';
+  }
+
+  if (message) {
+    return message;
+  }
+
+  return 'No se pudo cargar el monitoreo de pacientes. Por favor, recarga la página.';
 }
 
 function getLocalDate() {

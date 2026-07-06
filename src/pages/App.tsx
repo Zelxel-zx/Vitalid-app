@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, MessageSquare, Activity, User, UserRound, Menu, X, ClipboardList, Calendar, Users, MessageCircle } from 'lucide-react';
+import { Home, MessageSquare, Activity, User, UserRound, Menu, X, ClipboardList, Calendar, Users, MessageCircle, Video } from 'lucide-react';
 import { LoginScreen, DoctorCard, ChatInterface, ProgressChart, TreatmentsView, AppointmentBooking, AppointmentHistory, DoctorDashboard, DoctorPatientsView, PatientRegistrationForm, DoctorRegistrationForm, AiChatBubble } from '../components/presentation';
 import { ProfileView } from '../components/presentation/ProfileView';
 import { IncomingCallModal } from '../components/presentation/IncomingCallModal';
@@ -7,7 +7,7 @@ import { JitsiCallModal } from '../components/presentation/JitsiCallModal';
 import logo from '../images/Logo (1).svg';
 import logoutIcon from '../images/Logout.png';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigation } from '../hooks/useNavigation';
+import { clearNavigationStorage, useNavigation } from '../hooks/useNavigation';
 import { useDoctors } from '../hooks/useDoctors';
 import { useChat } from '../hooks/useChat';
 import { useHealthData } from '../hooks/useHealthData';
@@ -15,13 +15,13 @@ import { usePatientDashboard } from '../hooks/usePatientDashboard';
 import { usePatientDoctors } from '../hooks/usePatientDoctors';
 import { View } from '../types';
 import { DoctorSummary } from '../services/doctorService';
-import { chatService } from '../services/chatService';
+import { CHAT_UNREAD_UPDATED, chatService } from '../services/chatService';
 import { ChatMessage } from '../types';
-import { getJson } from '../services/apiClient';
 import { getAuthItem } from '../services/authStorage';
 import { getProfile, PROFILE_UPDATED } from '../services/profileService';
-import { getAllPatients, getPatientsByDoctor, PatientResponse } from '../services/patientService';
+import { getPatientsByDoctor, PatientResponse } from '../services/patientService';
 import { getMyTreatments } from '../services/treatmentService';
+import { endCall, initiateCall } from '../services/callService';
 
 export default function App() {
   const {
@@ -94,7 +94,7 @@ function MainApp({
   userId: number | null;
   handleLogout: () => void;
 }) {
-  const { currentView, selectedDoctor, mobileMenuOpen, setCurrentView, setSelectedDoctor, toggleMobileMenu, handleDoctorClick } = useNavigation();
+  const { currentView, selectedDoctor, mobileMenuOpen, setCurrentView, setSelectedDoctor, toggleMobileMenu, handleDoctorClick } = useNavigation(userType, userId);
   const { doctors } = useDoctors();
   const { messages, setMessages } = useChat(selectedDoctor);
   const { bloodPressure, bloodSugar } = useHealthData();
@@ -110,7 +110,7 @@ function MainApp({
   const firstName = displayName.trim().split(/\s+/)[0] || 'Paciente';
   const [appointmentPrefill, setAppointmentPrefill] = useState<{
     doctorId: number;
-    date: string;
+    date?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -135,16 +135,37 @@ function MainApp({
 
   // Unread message badge
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadByDoctor, setUnreadByDoctor] = useState<Record<number, number>>({});
   useEffect(() => {
     if (!userId) return;
     const fetchUnread = () => {
-      getJson<{ count: number }>(`/chat/unread-count?receiverId=${userId}`)
-        .then((r) => setUnreadCount(r.count))
+      chatService
+        .getUnreadConversations(userId)
+        .then((conversations) => {
+          const byDoctor: Record<number, number> = {};
+          let total = 0;
+          conversations.forEach((conversation) => {
+            const count = Number(conversation.unreadCount || 0);
+            total += count;
+            if (conversation.doctorId) {
+              byDoctor[conversation.doctorId] =
+                (byDoctor[conversation.doctorId] || 0) + count;
+            }
+          });
+          setUnreadByDoctor(byDoctor);
+          setUnreadCount(total);
+        })
         .catch(() => {});
     };
     fetchUnread();
     const id = setInterval(fetchUnread, 15000);
-    return () => clearInterval(id);
+    window.addEventListener(CHAT_UNREAD_UPDATED, fetchUnread);
+    window.addEventListener('focus', fetchUnread);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener(CHAT_UNREAD_UPDATED, fetchUnread);
+      window.removeEventListener('focus', fetchUnread);
+    };
   }, [userId]);
 
   // Global call state — incoming call accepted anywhere in the app
@@ -160,11 +181,7 @@ function MainApp({
   const handleGlobalCallEnd = async () => {
     if (globalCallId) {
       try {
-        await fetch(`${import.meta.env.VITE_API_URL || ''}/calls/${globalCallId}/status`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'ENDED' }),
-        });
+        await endCall(globalCallId);
       } catch { /* ignore */ }
     }
     setGlobalCallRoom(null);
@@ -191,8 +208,8 @@ function MainApp({
   const navItems = userType === 'doctor' ? doctorNavItems : patientNavItems;
 
   const handleLogoutClick = () => {
+    clearNavigationStorage(userType, userId);
     handleLogout();
-    setCurrentView('home');
   };
 
   const handleScheduleTreatmentFollowUp = (
@@ -202,6 +219,35 @@ function MainApp({
     setAppointmentPrefill({ doctorId, date });
     setSelectedDoctor(null);
     setCurrentView('appointments');
+  };
+
+  const handleScheduleDoctor = (doctorId: number) => {
+    setAppointmentPrefill({ doctorId });
+    setSelectedDoctor(null);
+    setCurrentView('appointments');
+  };
+
+  const handleStartVideoCall = async (
+    recipientUserId: number | null | undefined,
+    roomName: string,
+  ) => {
+    if (!userId || !recipientUserId) {
+      alert('No se pudo iniciar la videollamada porque falta el usuario receptor.');
+      return;
+    }
+
+    try {
+      const call = await initiateCall({
+        callerUserId: userId,
+        recipientUserId,
+        roomName,
+      });
+      setGlobalCallId(call.callId);
+      setGlobalCallRoom(call.roomName);
+    } catch (error) {
+      console.error('Error starting video call:', error);
+      alert('No se pudo iniciar la videollamada. Intenta nuevamente.');
+    }
   };
 
   // Badge dot for Messages nav item
@@ -238,7 +284,6 @@ function MainApp({
                       setAppointmentPrefill(null);
                       setCurrentView(item.id);
                       setSelectedDoctor(null);
-                      if (isMessages) setUnreadCount(0);
                     }}
                     className={`relative flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                       currentView === item.id
@@ -279,7 +324,6 @@ function MainApp({
                       setCurrentView(item.id);
                       setSelectedDoctor(null);
                       toggleMobileMenu();
-                      if (isMessages) setUnreadCount(0);
                     }}
                     className={`relative w-full flex items-center gap-2 px-4 py-3 transition-colors ${
                       currentView === item.id
@@ -364,7 +408,15 @@ function MainApp({
                   <DoctorCard
                     key={doctor.id}
                     {...doctor}
-                    onClick={() => handleDoctorClick(doctor.id)}
+                    unreadMessages={unreadByDoctor[doctor.id] ?? 0}
+                    onMessage={() => handleDoctorClick(doctor.id)}
+                    onVideoCall={() =>
+                      handleStartVideoCall(
+                        doctor.userId,
+                        `vitalid-room-${doctor.id}-${userId || 'guest'}`,
+                      )
+                    }
+                    onSchedule={() => handleScheduleDoctor(doctor.id)}
                   />
                 ))}
               </div>
@@ -472,15 +524,33 @@ function MainApp({
               <>
                 <h2 className="text-2xl font-semibold text-gray-900">Mensajes</h2>
                 <p className="text-gray-600 mb-6">Comunícate con tus doctores de forma segura y privada</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {doctors.map((doctor) => (
-                    <DoctorCard
-                      key={doctor.id}
-                      {...doctor}
-                      onClick={() => handleDoctorClick(doctor.id)}
-                    />
-                  ))}
-                </div>
+                {patientDoctors.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500">
+                    <MessageCircle size={36} className="mx-auto mb-3 opacity-40" />
+                    <p className="font-medium">Aun no tienes doctores disponibles para chat</p>
+                    <p className="mt-1 text-sm">
+                      Reserva una cita o inicia un tratamiento para habilitar la conversacion con ese doctor.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {patientDoctors.map((doctor) => (
+                      <DoctorCard
+                        key={doctor.id}
+                        {...doctor}
+                        unreadMessages={unreadByDoctor[doctor.id] ?? 0}
+                        onMessage={() => handleDoctorClick(doctor.id)}
+                        onVideoCall={() =>
+                          handleStartVideoCall(
+                            doctor.userId,
+                            `vitalid-room-${doctor.id}-${userId || 'guest'}`,
+                          )
+                        }
+                        onSchedule={() => handleScheduleDoctor(doctor.id)}
+                      />
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -488,7 +558,11 @@ function MainApp({
 
         {/* Doctor messages: shows inbox of patient conversations */}
         {currentView === 'messages' && userType === 'doctor' && (
-          <DoctorMessagesView doctors={doctors} userId={userId} />
+          <DoctorMessagesView
+            doctors={doctors}
+            userId={userId}
+            onStartVideoCall={handleStartVideoCall}
+          />
         )}
 
         {currentView === 'profile' && (
@@ -497,7 +571,7 @@ function MainApp({
       </main>
 
       {/* Global incoming call notification — visible on any view */}
-      {/*<IncomingCallModal onAccepted={handleIncomingCallAccepted} />*/}
+      <IncomingCallModal onAccepted={handleIncomingCallAccepted} />
 
       {/* Global call window — opened when an incoming call is accepted */}
       {globalCallRoom && (
@@ -521,9 +595,14 @@ function MainApp({
 function DoctorMessagesView({
   doctors,
   userId,
+  onStartVideoCall,
 }: {
   doctors: DoctorSummary[];
   userId: number | null;
+  onStartVideoCall: (
+    recipientUserId: number | null | undefined,
+    roomName: string,
+  ) => void;
 }) {
   const [patients, setPatients] = useState<PatientResponse[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<PatientResponse | null>(null);
@@ -539,23 +618,26 @@ function DoctorMessagesView({
 
   useEffect(() => {
     let mounted = true;
-    if (!userId) { setLoading(false); return; }
+    if (!userId || !myDoctorId) {
+      setPatients([]);
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
 
     Promise.all([
-      getAllPatients(),
-      // GET /chat/unread returns [{ doctorId, unreadCount }] from sender perspective
-      // We repurpose it here: fetch unread messages addressed to this doctor (userId)
-      getJson<Array<{ senderUserId?: number; unreadCount: number }>>(`/chat/unread?receiverId=${userId}`)
-        .catch(() => [] as Array<{ senderUserId?: number; unreadCount: number }>),
+      getPatientsByDoctor(myDoctorId),
+      chatService
+        .getUnreadConversations(userId)
+        .catch(() => []),
     ])
       .then(([allPatients, unreadList]) => {
         if (!mounted) return;
 
         // Build unread map: senderUserId → count
         const unreadMap: Record<number, number> = {};
-        (unreadList as any[]).forEach((entry) => {
+        unreadList.forEach((entry) => {
           if (entry.senderUserId) unreadMap[entry.senderUserId] = entry.unreadCount;
         });
         setUnreadByPatient(unreadMap);
@@ -576,7 +658,26 @@ function DoctorMessagesView({
       })
       .finally(() => { if (mounted) setLoading(false); });
 
-    return () => { mounted = false; };
+    const refreshOnUnreadChange = () => {
+      chatService
+        .getUnreadConversations(userId)
+        .then((unreadList) => {
+          if (!mounted) return;
+          const unreadMap: Record<number, number> = {};
+          unreadList.forEach((entry) => {
+            if (entry.senderUserId) unreadMap[entry.senderUserId] = entry.unreadCount;
+          });
+          setUnreadByPatient(unreadMap);
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener(CHAT_UNREAD_UPDATED, refreshOnUnreadChange);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener(CHAT_UNREAD_UPDATED, refreshOnUnreadChange);
+    };
   }, [userId, myDoctorId]);
 
   useEffect(() => {
@@ -633,45 +734,80 @@ function DoctorMessagesView({
       {!loading && filtered.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-500">
           <MessageCircle size={36} className="mx-auto mb-3 opacity-40" />
-          <p className="font-medium">No hay pacientes registrados</p>
+          <p className="font-medium">Aun no tienes pacientes disponibles para chat</p>
+          <p className="mt-1 text-sm">
+            Apareceran cuando un paciente reserve una cita contigo o tenga un tratamiento asignado.
+          </p>
         </div>
       )}
 
       {!loading && filtered.length > 0 && (
-        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((patient) => {
             const unread = unreadByPatient[patient.userId] ?? 0;
             return (
-              <button
+              <article
                 key={patient.id}
                 onClick={() => setSelectedPatient(patient)}
-                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+                className="relative cursor-pointer rounded-xl border border-primary bg-white p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
               >
-                {patient.avatar ? (
-                  <img
-                    src={patient.avatar}
-                    alt={patient.name}
-                    className="h-11 w-11 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <UserRound size={22} className="text-primary" />
+                {unread > 0 && (
+                  <div className="absolute right-4 top-4 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-2 text-xs font-medium text-white">
+                    {unread > 99 ? '99+' : unread}
                   </div>
                 )}
 
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-gray-900">{patient.name}</p>
-                  <p className="text-sm text-gray-500 truncate">{patient.email}</p>
-                </div>
+                <div className="flex items-start gap-4 pr-10">
+                  {patient.avatar ? (
+                    <img
+                      src={patient.avatar}
+                      alt={patient.name}
+                      className="h-16 w-16 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <UserRound size={30} />
+                    </div>
+                  )}
 
-                {unread > 0 ? (
-                  <span className="flex items-center justify-center min-w-[22px] h-[22px] bg-red-500 text-white text-xs font-bold rounded-full px-1 shrink-0">
-                    {unread > 99 ? '99+' : unread}
-                  </span>
-                ) : (
-                  <span className="text-xs text-primary font-medium shrink-0">Abrir chat</span>
-                )}
-              </button>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate font-medium text-gray-900">
+                      {patient.name}
+                    </h3>
+                    <p className="truncate text-sm text-gray-500">
+                      {patient.email}
+                    </p>
+
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedPatient(patient);
+                        }}
+                        className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm text-white transition-colors hover:opacity-90"
+                      >
+                        <MessageCircle size={14} />
+                        <span>Mensaje</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onStartVideoCall(
+                            patient.userId,
+                            `vitalid-room-${myDoctorId}-${patient.userId}`,
+                          );
+                        }}
+                        className="rounded-lg border border-gray-300 p-1.5 transition-colors hover:bg-gray-50"
+                        title="Videollamada"
+                      >
+                        <Video size={16} className="text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </article>
             );
           })}
         </div>
@@ -683,7 +819,7 @@ function DoctorMessagesView({
 
 /**
  * Doctor's "Pacientes" view — Issues #5 & #6.
- * Toggle: "Todos" (all patients in system) vs "Mis Pacientes" (those with appointments with this doctor).
+ * Doctor patient directory: show only patients assigned to the current doctor.
  */
 function PatientsView({
   userId,
@@ -692,8 +828,7 @@ function PatientsView({
   userId: number | null;
   doctors: DoctorSummary[];
 }) {
-  const [filterMode, setFilterMode] = useState<'all' | 'mine'>('all');
-  const [allPatients, setAllPatients] = useState<PatientResponse[]>([]);
+  const filterMode = 'mine';
   const [myPatients, setMyPatients] = useState<PatientResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -705,24 +840,20 @@ function PatientsView({
     let mounted = true;
     setLoading(true);
 
-    const fetches: Promise<void>[] = [
-      getAllPatients().then((data) => { if (mounted) setAllPatients(data); }),
-    ];
-
     if (myDoctorId) {
-      fetches.push(
-        getPatientsByDoctor(myDoctorId).then((data) => { if (mounted) setMyPatients(data); }),
-      );
+      getPatientsByDoctor(myDoctorId)
+        .then((data) => { if (mounted) setMyPatients(data); })
+        .catch((err) => console.error('Error loading patients:', err))
+        .finally(() => { if (mounted) setLoading(false); });
+    } else {
+      setMyPatients([]);
+      setLoading(false);
     }
-
-    Promise.all(fetches)
-      .catch((err) => console.error('Error loading patients:', err))
-      .finally(() => { if (mounted) setLoading(false); });
 
     return () => { mounted = false; };
   }, [myDoctorId]);
 
-  const displayed = filterMode === 'mine' ? myPatients : allPatients;
+  const displayed = myPatients;
   const filtered = searchTerm.trim()
     ? displayed.filter(
         (p) =>
@@ -738,28 +869,8 @@ function PatientsView({
         <div>
           <h2 className="text-2xl font-semibold text-gray-900">Pacientes</h2>
           <p className="text-gray-600 text-sm mt-1">
-            {filterMode === 'all'
-              ? `${filtered.length} pacientes registrados en el sistema`
-              : `${filtered.length} pacientes con citas contigo`}
+            {`${filtered.length} pacientes con citas contigo`}
           </p>
-        </div>
-        <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
-          <button
-            onClick={() => setFilterMode('all')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              filterMode === 'all' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Todos
-          </button>
-          <button
-            onClick={() => setFilterMode('mine')}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-l border-gray-200 ${
-              filterMode === 'mine' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Mis Pacientes
-          </button>
         </div>
       </div>
 

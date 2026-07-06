@@ -42,12 +42,13 @@ export async function login(email: string, password: string): Promise<LoginResul
 }
 
 export async function register(input: RegisterInput): Promise<LoginResult> {
+  const requestedType = input.userType === 'doctor' ? 'DOCTOR' : 'PATIENT';
   const response = await postJson<AuthPayload>('/auth/register', {
     name: input.name,
     email: input.email,
     password: input.password,
     phone: input.phone,
-    type: input.userType.toUpperCase(),
+    type: requestedType,
   });
 
   return normalizeAuth(response.data);
@@ -61,6 +62,10 @@ export async function recoverPassword(input: RecoverPasswordInput): Promise<void
 }
 
 function normalizeAuth(data: AuthPayload): LoginResult {
+  if (data.type !== 'DOCTOR' && data.type !== 'PATIENT') {
+    throw new Error('El backend devolvio un tipo de usuario invalido.');
+  }
+
   return {
     id: data.id,
     name: data.name,

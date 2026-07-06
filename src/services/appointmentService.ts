@@ -1,6 +1,8 @@
 import { getJson, postJson, putJson } from './apiClient';
 import { getPatientByUserId } from './patientService';
 
+export const APPOINTMENTS_UPDATED = 'vitalid:appointments-updated';
+
 export interface AppointmentResponse {
   id: number;
   patientId: number;
@@ -29,7 +31,9 @@ export interface RescheduleRequest {
 }
 
 export async function createAppointment(request: AppointmentRequest): Promise<AppointmentResponse> {
-  return postJson<AppointmentResponse>('/appointments', request);
+  const appointment = await postJson<AppointmentResponse>('/appointments', request);
+  notifyAppointmentsUpdated();
+  return appointment;
 }
 
 export async function getAppointmentsForPatient(userId: number): Promise<AppointmentResponse[]> {
@@ -42,5 +46,11 @@ export async function getAppointmentsForDoctor(doctorId: number): Promise<Appoin
 }
 
 export async function rescheduleAppointment(id: number, request: RescheduleRequest): Promise<AppointmentResponse> {
-  return putJson<AppointmentResponse>(`/appointments/${id}/reschedule`, request);
+  const appointment = await putJson<AppointmentResponse>(`/appointments/${id}/reschedule`, request);
+  notifyAppointmentsUpdated();
+  return appointment;
+}
+
+function notifyAppointmentsUpdated() {
+  window.dispatchEvent(new Event(APPOINTMENTS_UPDATED));
 }

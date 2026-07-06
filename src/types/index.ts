@@ -10,7 +10,7 @@ export interface User {
 
 // Navigation Types
 export type PatientView = 'home' | 'messages' | 'treatments' | 'appointments' | 'history' | 'profile';
-export type DoctorView = 'home' | 'messages' | 'patients' | 'profile';
+export type DoctorView = 'home' | 'messages' | 'patients' | 'appointments' | 'profile';
 export type View = PatientView | DoctorView;
 
 // Doctor Types

@@ -175,10 +175,10 @@ export function PatientRegistrationForm({
             <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white/20">
               <HeartPulse size={24} />
             </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">Completa tu perfil médico</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">Completa tu perfil de paciente</h1>
             <p className="mt-2 max-w-2xl text-sm text-cyan-50 sm:text-base">
-              Esta información nos ayuda a personalizar tu atención y mantener tus
-              datos de salud organizados.
+              Esta información médica nos ayuda a personalizar tu atención y mantener
+              tus datos de salud organizados.
             </p>
           </div>
 

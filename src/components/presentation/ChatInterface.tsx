@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Image as ImageIcon, Phone, Video, MoreVertical, ArrowLeft, X, FileText, PhoneOff } from 'lucide-react';
 import { chatService } from '../../services/chatService';
 import { JitsiCallModal } from './JitsiCallModal';
+import { endCall, initiateCall as initiateCallSession } from '../../services/callService';
 // import { postJson, putJson } from '../../services/apiClient';
 import { getAuthItem } from '../../services/authStorage';
 
@@ -57,6 +58,12 @@ export function ChatInterface({ doctorId, doctorName, doctorAvatar, messages: in
   }, [initialMessages]);
 
   useEffect(() => {
+    chatService
+      .markMessagesAsRead(doctorId, isDoctor ? chatPartnerUserId : null)
+      .catch((err) => console.error('Error marking messages as read:', err));
+  }, [chatPartnerUserId, doctorId, isDoctor]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -108,18 +115,42 @@ export function ChatInterface({ doctorId, doctorName, doctorAvatar, messages: in
    * 1. Posts /calls/initiate so the recipient gets a ringing notification
    * 2. Opens the Jitsi call in-app (no new tab, no lobby issue)
    */
-  const initiateCall = () => {
+  const initiateCall = async () => {
     const patientUserId = isDoctor
       ? chatPartnerUserId
       : Number(myUserId);
+    const callRecipientUserId = isDoctor ? chatPartnerUserId : recipientUserId;
 
     const roomName = `vitalid-room-${doctorId}-${patientUserId || 'guest'}`;
 
-    setActiveCallId(null);
-    setActiveCallRoom(roomName);
+    if (!myUserId || !callRecipientUserId) {
+      alert('No se pudo iniciar la videollamada porque falta el usuario receptor.');
+      return;
+    }
+
+    try {
+      setIsCalling(true);
+      const call = await initiateCallSession({
+        callerUserId: Number(myUserId),
+        recipientUserId: callRecipientUserId,
+        roomName,
+      });
+      setActiveCallId(call.callId);
+      setActiveCallRoom(call.roomName);
+    } catch (error) {
+      console.error('Error initiating call:', error);
+      alert('No se pudo iniciar la videollamada. Intenta nuevamente.');
+    } finally {
+      setIsCalling(false);
+    }
   };
 
-  const endCall = () => {
+  const handleEndCall = async () => {
+    if (activeCallId) {
+      try {
+        await endCall(activeCallId);
+      } catch { /* ignore */ }
+    }
     setActiveCallRoom(null);
     setActiveCallId(null);
   };
@@ -285,7 +316,7 @@ export function ChatInterface({ doctorId, doctorName, doctorAvatar, messages: in
         <JitsiCallModal
           roomName={activeCallRoom}
           displayName={myName}
-          onClose={endCall}
+          onClose={handleEndCall}
         />
       )}
     </div>

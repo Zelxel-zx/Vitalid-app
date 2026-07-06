@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Check, Clock3, Package, Plus, TriangleAlert, X } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Package, Plus, TriangleAlert, X } from 'lucide-react';
 import {
   addMedicationSideEffect,
   addMedicationStock,
@@ -35,18 +35,33 @@ export function TreatmentChecklistView({
   const [savingSideEffect, setSavingSideEffect] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const today = getLocalDate();
+  const [selectedDate, setSelectedDate] = useState(today);
 
   const loadChecklist = useCallback(async () => {
+    let keepLoadingForClampedDate = false;
     try {
+      setLoading(true);
       setError(null);
-      const data = await getTreatmentChecklist(treatmentId, today);
+      const data = await getTreatmentChecklist(treatmentId, selectedDate);
+      const clampedDate = clampDate(
+        selectedDate,
+        data.treatmentStartDate,
+        getMaxSelectableDate(today, data.treatmentEndDate),
+      );
+      if (clampedDate !== selectedDate) {
+        keepLoadingForClampedDate = true;
+        setSelectedDate(clampedDate);
+        return;
+      }
       setChecklist(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar la checklist');
     } finally {
-      setLoading(false);
+      if (!keepLoadingForClampedDate) {
+        setLoading(false);
+      }
     }
-  }, [treatmentId, today]);
+  }, [treatmentId, selectedDate, today]);
 
   useEffect(() => {
     loadChecklist();
@@ -62,9 +77,9 @@ export function TreatmentChecklistView({
       setUpdatingDose(doseKey);
       setError(null);
       if (taken) {
-        await revertDoseTaken(medicationId, scheduledTime, today);
+        await revertDoseTaken(medicationId, scheduledTime, selectedDate);
       } else {
-        await markDoseTaken(medicationId, scheduledTime, today);
+        await markDoseTaken(medicationId, scheduledTime, selectedDate);
       }
       await loadChecklist();
     } catch (err) {
@@ -139,14 +154,75 @@ export function TreatmentChecklistView({
   }
 
   const percentage = Number(checklist.summary?.percentage) || 0;
+  const isToday = selectedDate === today;
+  const minSelectableDate = checklist.treatmentStartDate;
+  const maxSelectableDate = getMaxSelectableDate(
+    today,
+    checklist.treatmentEndDate,
+  );
+  const canGoPrevious =
+    !minSelectableDate || selectedDate > minSelectableDate;
+  const canGoNext = selectedDate < maxSelectableDate;
+  const setChecklistDate = (date: string) => {
+    setSelectedDate(
+      clampDate(date, minSelectableDate, maxSelectableDate),
+    );
+  };
 
   return (
     <div className="space-y-6">
       <BackButton onClick={onBack} />
 
       <div className="rounded-xl bg-primary p-6 text-white">
-        <p className="text-sm text-white/80">Checklist de hoy</p>
+        <p className="text-sm text-white/80">
+          {isToday ? 'Checklist de hoy' : 'Checklist del historial'}
+        </p>
         <h2 className="mt-1 text-2xl font-semibold">{checklist.treatmentTitle}</h2>
+        <div className="mt-4 flex flex-col gap-3 rounded-xl bg-white/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <CalendarDays size={18} />
+            {formatSelectedDate(selectedDate)}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={!canGoPrevious}
+              onClick={() => setChecklistDate(addDays(selectedDate, -1))}
+              className="inline-flex items-center gap-1 rounded-lg bg-white/15 px-3 py-1.5 text-sm font-medium transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ChevronLeft size={16} />
+              Día anterior
+            </button>
+            <input
+              type="date"
+              value={selectedDate}
+              min={minSelectableDate || undefined}
+              max={maxSelectableDate}
+              onChange={(event) => {
+                if (event.target.value) setChecklistDate(event.target.value);
+              }}
+              className="rounded-lg border border-white/30 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 outline-none"
+            />
+            <button
+              type="button"
+              disabled={!canGoNext}
+              onClick={() => setChecklistDate(addDays(selectedDate, 1))}
+              className="inline-flex items-center gap-1 rounded-lg bg-white/15 px-3 py-1.5 text-sm font-medium transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Día siguiente
+              <ChevronRight size={16} />
+            </button>
+            {selectedDate !== maxSelectableDate && (
+              <button
+                type="button"
+                onClick={() => setChecklistDate(maxSelectableDate)}
+                className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-primary transition hover:bg-white/90"
+              >
+                {maxSelectableDate === today ? 'Ver hoy' : 'Ultimo dia'}
+              </button>
+            )}
+          </div>
+        </div>
         <div className="mt-5 text-4xl font-bold">{percentage}%</div>
         <div className="mt-4 h-2 rounded-full bg-white/20">
           <div
@@ -261,7 +337,7 @@ export function TreatmentChecklistView({
                     medication.endDate,
                   ) !== 'active' && (
                     <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
-                      Este medicamento no tiene dosis programadas para hoy.
+                      Este medicamento no tiene dosis programadas para esta fecha.
                     </div>
                   )}
                 {medication.doses.map((dose) => {
@@ -498,6 +574,36 @@ function formatMedicationDate(date: string) {
     month: 'long',
     year: 'numeric',
   });
+}
+
+function formatSelectedDate(date: string) {
+  const parsed = new Date(`${date}T00:00:00`);
+  return parsed.toLocaleDateString('es-PE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function addDays(date: string, days: number) {
+  const parsed = new Date(`${date}T00:00:00`);
+  parsed.setDate(parsed.getDate() + days);
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getMaxSelectableDate(today: string, treatmentEndDate: string | null) {
+  if (!treatmentEndDate) return today;
+  return treatmentEndDate < today ? treatmentEndDate : today;
+}
+
+function clampDate(date: string, minDate: string | null, maxDate: string) {
+  if (minDate && date < minDate) return minDate;
+  if (date > maxDate) return maxDate;
+  return date;
 }
 
 function getLocalDate() {

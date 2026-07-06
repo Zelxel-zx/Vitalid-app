@@ -4,6 +4,7 @@ import { getAppointmentsForPatient, getAppointmentsForDoctor, rescheduleAppointm
 import { getAllDoctors, getDoctorById } from '../../services/doctorService';
 import { getMyTreatments } from '../../services/treatmentService';
 import { getAuthItem } from '../../services/authStorage';
+import { buildJitsiUrl } from '../../services/videoCallService';
 
 interface EnrichedAppointment extends AppointmentResponse {
   doctorAvatar?: string;
@@ -210,7 +211,7 @@ export function AppointmentHistory({
 
   const handleJoinVideoCall = (appointment: EnrichedAppointment) => {
     const roomName = `vitalid-appt-${appointment.id}`;
-    window.open(`https://meet.jit.si/${roomName}`, '_blank');
+    window.open(buildJitsiUrl(roomName), '_blank');
   };
 
   if (isLoading) {

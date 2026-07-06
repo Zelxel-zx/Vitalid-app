@@ -1,7 +1,7 @@
 import { getAuthItem } from './authStorage';
 import { getPatientByUserId } from './patientService';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 /**
  * Downloads the patient's medical history PDF.
@@ -9,13 +9,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
  * GET /reports/patient/{patientId}/pdf
  */
 export async function downloadPatientReport(userId: number): Promise<void> {
-  const token = getAuthItem('authToken');
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  // The backend endpoint expects the patient entity ID, not the user ID
   let patientEntityId: number = userId;
   try {
     const patient = await getPatientByUserId(userId);
@@ -24,7 +17,20 @@ export async function downloadPatientReport(userId: number): Promise<void> {
     // Fall back to userId if patient lookup fails (the backend will return 404 clearly)
   }
 
-  const response = await fetch(`${API_BASE_URL}/reports/patient/${patientEntityId}/pdf`, {
+  return downloadPatientReportById(patientEntityId);
+}
+
+export async function downloadPatientReportById(
+  patientId: number,
+  patientName?: string,
+): Promise<void> {
+  const token = getAuthItem('authToken');
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/reports/patient/${patientId}/pdf`, {
     method: 'GET',
     headers,
   });
@@ -38,9 +44,20 @@ export async function downloadPatientReport(userId: number): Promise<void> {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `vitalid-historial-${patientEntityId}.pdf`;
+  a.download = `vitalid-${formatReportFileName(patientName || String(patientId))}.pdf`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   window.URL.revokeObjectURL(url);
+}
+
+function formatReportFileName(value: string): string {
+  const normalized = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+
+  return normalized || 'paciente';
 }

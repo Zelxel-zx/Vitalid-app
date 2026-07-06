@@ -27,6 +27,8 @@ export interface TreatmentChecklist {
   treatmentId: number;
   treatmentTitle: string;
   date: string;
+  treatmentStartDate: string | null;
+  treatmentEndDate: string | null;
   progress: number;
   summary: {
     totalMedications: number;

@@ -85,7 +85,13 @@ export function useAuth() {
   }, []);
 
   const handleRegister = useCallback(async (payload: RegisterInput) => {
+    clearAuthItems();
     const auth = await register(payload);
+    if (auth.userType !== payload.userType) {
+      throw new Error(
+        `El backend registro la cuenta como ${auth.userType}, pero en el formulario se selecciono ${payload.userType}.`,
+      );
+    }
     setAuthState({
       isLoggedIn: true,
       userType: auth.userType,

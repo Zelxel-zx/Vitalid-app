@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { JITSI_DOMAIN } from '../../services/videoCallService';
 
 interface JitsiCallModalProps {
   roomName: string;
@@ -15,10 +16,8 @@ declare global {
 
 /**
  * Embeds a Jitsi Meet call in-app using the External API.
- * This bypasses the meet.jit.si lobby/moderator restrictions by:
- *  - Setting the user as a moderator via the isModerator flag
- *  - Disabling prejoin page and lobby via configOverwrite
- *  - Loading the call inline (no new tab needed)
+ * The Jitsi domain is configurable through VITE_JITSI_DOMAIN so the app can
+ * use an instance that allows direct access without an external login.
  */
 export function JitsiCallModal({ roomName, displayName, onClose }: JitsiCallModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +30,7 @@ export function JitsiCallModal({ roomName, displayName, onClose }: JitsiCallModa
       if (!containerRef.current || !window.JitsiMeetExternalAPI) return;
 
       try {
-        apiRef.current = new window.JitsiMeetExternalAPI('meet.jit.si', {
+        apiRef.current = new window.JitsiMeetExternalAPI(JITSI_DOMAIN, {
           roomName,
           parentNode: containerRef.current,
           width: '100%',
@@ -45,7 +44,6 @@ export function JitsiCallModal({ roomName, displayName, onClose }: JitsiCallModa
             // Disable the lobby — the first user to join becomes moderator
             lobby: { enabled: false },
             // Skip the "waiting for moderator" step
-            startAsModerator: true,
             requireDisplayName: false,
           },
           interfaceConfigOverwrite: {
@@ -70,7 +68,7 @@ export function JitsiCallModal({ roomName, displayName, onClose }: JitsiCallModa
     if (!existingScript) {
       const script = document.createElement('script');
       script.id = 'jitsi-api';
-      script.src = 'https://meet.jit.si/external_api.js';
+      script.src = `https://${JITSI_DOMAIN}/external_api.js`;
       script.async = true;
       script.onload = initJitsi;
       document.head.appendChild(script);

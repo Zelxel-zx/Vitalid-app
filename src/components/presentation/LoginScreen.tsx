@@ -71,8 +71,12 @@ export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
         });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Authentication failed';
-      setError(message);
+      setError(
+        getFriendlyAuthError(
+          err instanceof Error ? err.message : 'Authentication failed',
+          isLogin,
+        ),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -149,6 +153,7 @@ export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
           {/* Botones Login/Registro */}
           <div className="flex gap-3 mb-8">
             <button
+              type="button"
               onClick={() => setIsLogin(true)}
               className={`flex-1 py-2.5 rounded-lg transition-colors font-medium ${
                 isLogin
@@ -159,7 +164,11 @@ export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
               Iniciar Sesión
             </button>
             <button
-              onClick={() => setIsLogin(false)}
+              type="button"
+              onClick={() => {
+                setIsLogin(false);
+                setUserType('patient');
+              }}
               className={`flex-1 py-2.5 rounded-lg transition-colors font-medium ${
                 !isLogin
                   ? 'bg-primary text-white'
@@ -251,6 +260,7 @@ export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
                 <label className="flex-1 flex items-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer hover:border-primary transition">
                   <input
                     type="radio"
+                    name="userType"
                     value="patient"
                     checked={userType === 'patient'}
                     onChange={() => setUserType('patient')}
@@ -261,6 +271,7 @@ export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
                 <label className="flex-1 flex items-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer hover:border-primary transition">
                   <input
                     type="radio"
+                    name="userType"
                     value="doctor"
                     checked={userType === 'doctor'}
                     onChange={() => setUserType('doctor')}
@@ -393,4 +404,33 @@ export function LoginScreen({ onLogin, onRegister }: LoginScreenProps) {
       )}
     </div>
   );
+}
+
+function getFriendlyAuthError(message: string, isLogin: boolean) {
+  const normalized = message.toLowerCase();
+
+  if (isLogin) {
+    if (
+      normalized.includes('usuario no existe') ||
+      normalized.includes('user not found')
+    ) {
+      return 'El usuario no existe. Revisa el correo o crea una cuenta nueva.';
+    }
+    if (
+      normalized.includes('contraseña incorrecta') ||
+      normalized.includes('password') ||
+      normalized.includes('bad credentials')
+    ) {
+      return 'Contraseña incorrecta. Verifica tu clave e intenta nuevamente.';
+    }
+    if (
+      normalized.includes('invalid credentials') ||
+      normalized.includes('unauthorized')
+    ) {
+      return 'No pudimos iniciar sesión con esos datos. Revisa tu correo y contraseña.';
+    }
+    return message || 'No pudimos iniciar sesión. Inténtalo nuevamente.';
+  }
+
+  return message || 'No pudimos crear la cuenta. Inténtalo nuevamente.';
 }

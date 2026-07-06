@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Calendar, Clock, Video, MapPin, Filter, ChevronLeft, ChevronRight, Search, UserRound } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, Filter, ChevronLeft, ChevronRight, Search, UserRound, MessageCircle } from 'lucide-react';
 import { DoctorSummary, formatDoctorName, getAllDoctors, getDoctorAvailability } from '../../services/doctorService';
 import { createAppointment } from '../../services/appointmentService';
 import { getPatientByUserId } from '../../services/patientService';
@@ -154,7 +154,13 @@ export function AppointmentBooking({
             consultationType === 'presencial' ? 'IN_PERSON' : 'VIDEO_CALL',
         });
         
-        alert(`¡Cita reservada con ${formatDoctorName(selectedDoctor.name)} el ${formatDate(selectedDate)} a las ${selectedTime}!`);
+        const virtualNote =
+          consultationType === 'videollamada'
+            ? ' Podras unirte a la videollamada desde el chat con el doctor.'
+            : '';
+        alert(
+          `Cita reservada con ${formatDoctorName(selectedDoctor.name)} el ${formatDate(selectedDate)} a las ${selectedTime}.${virtualNote}`,
+        );
         setSelectedDoctor(null);
         setSelectedTime(null);
       } catch (err) {
@@ -239,6 +245,20 @@ export function AppointmentBooking({
                   {selectedDoctor.medicalCenterAddress ||
                     'Dirección del centro médico no disponible'}
                 </span>
+              </div>
+            )}
+            {consultationType === 'videollamada' && (
+              <div className="mt-3 flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/10 p-3 text-sm text-gray-700">
+                <MessageCircle className="mt-0.5 shrink-0 text-primary" size={18} />
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    Enlace para unirse a la videollamada
+                  </p>
+                  <p className="mt-1">
+                    Cuando la cita sea confirmada, podras ingresar a la
+                    videollamada desde el chat que tienes con el doctor.
+                  </p>
+                </div>
               </div>
             )}
           </div>
