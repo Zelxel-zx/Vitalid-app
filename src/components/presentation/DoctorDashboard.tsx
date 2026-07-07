@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  CalendarDays,
   FileText,
   Mail,
   MessageSquare,
@@ -15,7 +16,11 @@ import {
   X,
 } from 'lucide-react';
 import { getAllPatients, PatientResponse } from '../../services/patientService';
-import { getAppointmentsForDoctor } from '../../services/appointmentService';
+import {
+  AppointmentResponse,
+  getAppointmentsForDoctor,
+  getAppointmentsForPatientId,
+} from '../../services/appointmentService';
 import { getAuthItem } from '../../services/authStorage';
 import { getAllDoctors } from '../../services/doctorService';
 import { sendEmail } from '../../services/notificationService';
@@ -91,10 +96,16 @@ export function DoctorDashboard({
     null,
   );
   const [notesPatient, setNotesPatient] = useState<DoctorPatient | null>(null);
+  const [appointmentsPatient, setAppointmentsPatient] =
+    useState<DoctorPatient | null>(null);
+  const [patientAppointments, setPatientAppointments] = useState<
+    AppointmentResponse[]
+  >([]);
   const [patientNotes, setPatientNotes] = useState<PatientNote[]>([]);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
+  const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
   const [prescriptionMode, setPrescriptionMode] = useState<
     'treatments' | 'new-treatment' | 'new-medication'
   >('treatments');
@@ -365,6 +376,32 @@ export function DoctorDashboard({
     setNoteContent('');
   };
 
+  const openAppointmentsPanel = async (patient: DoctorPatient) => {
+    setAppointmentsPatient(patient);
+    setIsLoadingAppointments(true);
+    try {
+      setError(null);
+      setPatientAppointments(
+        await getAppointmentsForPatientId(patient.patient.id),
+      );
+    } catch (err) {
+      console.error('Error loading patient appointments:', err);
+      setPatientAppointments([]);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'No se pudieron cargar las citas del paciente.',
+      );
+    } finally {
+      setIsLoadingAppointments(false);
+    }
+  };
+
+  const closeAppointmentsPanel = () => {
+    setAppointmentsPatient(null);
+    setPatientAppointments([]);
+  };
+
   const handleCreateNote = async (event: FormEvent) => {
     event.preventDefault();
     if (!notesPatient) return;
@@ -471,6 +508,7 @@ export function DoctorDashboard({
                   handleDownloadMedicalHistory(patient.patient)
                 }
                 onOpenNotes={() => openNotesPanel(patient)}
+                onOpenAppointments={() => openAppointmentsPanel(patient)}
               />
             ))}
           </div>
@@ -516,6 +554,15 @@ export function DoctorDashboard({
             onSubmit={handleCreateNote}
             onDelete={handleDeleteNote}
             onClose={closeNotesPanel}
+          />
+        )}
+
+        {appointmentsPatient && (
+          <PatientAppointmentsPanel
+            patient={appointmentsPatient}
+            appointments={patientAppointments}
+            isLoading={isLoadingAppointments}
+            onClose={closeAppointmentsPanel}
           />
         )}
       </div>
@@ -571,6 +618,7 @@ export function DoctorDashboard({
                   handleDownloadMedicalHistory(patient.patient)
                 }
                 onOpenNotes={() => openNotesPanel(patient)}
+                onOpenAppointments={() => openAppointmentsPanel(patient)}
                 onContact={() => {
                   setContactPatient(patient);
                   setEmailSubject(`Seguimiento - ${patient.patient.name}`);
@@ -617,6 +665,7 @@ export function DoctorDashboard({
                   handleDownloadMedicalHistory(patient.patient)
                 }
                 onOpenNotes={() => openNotesPanel(patient)}
+                onOpenAppointments={() => openAppointmentsPanel(patient)}
               />
             ))}
           </div>
@@ -663,6 +712,15 @@ export function DoctorDashboard({
           onSubmit={handleCreateNote}
           onDelete={handleDeleteNote}
           onClose={closeNotesPanel}
+        />
+      )}
+
+      {appointmentsPatient && (
+        <PatientAppointmentsPanel
+          patient={appointmentsPatient}
+          appointments={patientAppointments}
+          isLoading={isLoadingAppointments}
+          onClose={closeAppointmentsPanel}
         />
       )}
 
@@ -866,6 +924,7 @@ function CriticalPatientCard({
   onShowEffects,
   onDownloadHistory,
   onOpenNotes,
+  onOpenAppointments,
   onContact,
 }: {
   data: DoctorPatient;
@@ -873,6 +932,7 @@ function CriticalPatientCard({
   onShowEffects: () => void;
   onDownloadHistory: () => void;
   onOpenNotes: () => void;
+  onOpenAppointments: () => void;
   onContact?: () => void;
 }) {
   return (
@@ -924,6 +984,7 @@ function CriticalPatientCard({
             onShowEffects={onShowEffects}
             onDownloadHistory={onDownloadHistory}
             onOpenNotes={onOpenNotes}
+            onOpenAppointments={onOpenAppointments}
             onContact={onContact}
           />
         </div>
@@ -938,12 +999,14 @@ function PatientRow({
   onShowEffects,
   onDownloadHistory,
   onOpenNotes,
+  onOpenAppointments,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
   onDownloadHistory: () => void;
   onOpenNotes: () => void;
+  onOpenAppointments: () => void;
 }) {
   return (
     <div className="rounded-xl border border-primary bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
@@ -978,6 +1041,7 @@ function PatientRow({
             onShowEffects={onShowEffects}
             onDownloadHistory={onDownloadHistory}
             onOpenNotes={onOpenNotes}
+            onOpenAppointments={onOpenAppointments}
           />
         </div>
       </div>
@@ -991,12 +1055,14 @@ function DetailedPatientCard({
   onShowEffects,
   onDownloadHistory,
   onOpenNotes,
+  onOpenAppointments,
 }: {
   data: DoctorPatient;
   onPrescribe: () => void;
   onShowEffects: () => void;
   onDownloadHistory: () => void;
   onOpenNotes: () => void;
+  onOpenAppointments: () => void;
 }) {
   const activeTreatments = data.treatments.filter(
     (treatment) => treatment.status?.toUpperCase() === 'ACTIVE',
@@ -1124,6 +1190,7 @@ function DetailedPatientCard({
             onShowEffects={onShowEffects}
             onDownloadHistory={onDownloadHistory}
             onOpenNotes={onOpenNotes}
+            onOpenAppointments={onOpenAppointments}
           />
         </div>
       </div>
@@ -1148,6 +1215,7 @@ function PatientActions({
   onShowEffects,
   onDownloadHistory,
   onOpenNotes,
+  onOpenAppointments,
   onContact,
 }: {
   critical?: boolean;
@@ -1155,6 +1223,7 @@ function PatientActions({
   onShowEffects: () => void;
   onDownloadHistory: () => void;
   onOpenNotes: () => void;
+  onOpenAppointments: () => void;
   onContact?: () => void;
 }) {
   return (
@@ -1193,6 +1262,14 @@ function PatientActions({
       >
         <StickyNote size={17} />
         Notas
+      </button>
+      <button
+        type="button"
+        onClick={onOpenAppointments}
+        className="flex items-center gap-2 rounded-lg border border-sky-300 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50"
+      >
+        <CalendarDays size={17} />
+        Citas
       </button>
       <button
         type="button"
@@ -1581,6 +1658,90 @@ function PatientNotesPanel({
   );
 }
 
+function PatientAppointmentsPanel({
+  patient,
+  appointments,
+  isLoading,
+  onClose,
+}: {
+  patient: DoctorPatient;
+  appointments: AppointmentResponse[];
+  isLoading: boolean;
+  onClose: () => void;
+}) {
+  const sortedAppointments = [...appointments].sort((a, b) =>
+    `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`),
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900">
+              Citas de {patient.patient.name}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Historial de consultas registradas para este paciente.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"
+          >
+            <X size={21} />
+          </button>
+        </div>
+
+        {isLoading ? (
+          <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-500">
+            Cargando citas...
+          </p>
+        ) : sortedAppointments.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-gray-300 p-5 text-center text-sm text-gray-500">
+            Este paciente aun no tiene citas registradas.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {sortedAppointments.map((appointment) => (
+              <article
+                key={appointment.id}
+                className="rounded-xl border border-gray-200 bg-white p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h4 className="font-semibold text-gray-900">
+                      {formatDisplayDate(appointment.date)} a las{' '}
+                      {appointment.time}
+                    </h4>
+                    <p className="mt-1 text-sm text-gray-600">
+                      Dr. {appointment.doctorName}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                    {formatAppointmentStatus(appointment.status)}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-sky-50 px-3 py-1 text-sky-700">
+                    {appointment.appointmentType === 'VIDEO_CALL'
+                      ? 'Videollamada'
+                      : 'Presencial'}
+                  </span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+                    {appointment.reason || 'Sin motivo registrado'}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SideEffectsPanel({
   patient,
   onClose,
@@ -1880,4 +2041,17 @@ function formatDateTime(value?: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatAppointmentStatus(status?: string) {
+  switch (status?.toUpperCase()) {
+    case 'SCHEDULED':
+      return 'Programada';
+    case 'COMPLETED':
+      return 'Completada';
+    case 'CANCELLED':
+      return 'Cancelada';
+    default:
+      return status || 'Sin estado';
+  }
 }

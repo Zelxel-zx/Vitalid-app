@@ -41,6 +41,10 @@ export async function getAppointmentsForPatient(userId: number): Promise<Appoint
   return getJson<AppointmentResponse[]>(`/appointments/patient/${patient.id}`);
 }
 
+export async function getAppointmentsForPatientId(patientId: number): Promise<AppointmentResponse[]> {
+  return getJson<AppointmentResponse[]>(`/appointments/patient/${patientId}`);
+}
+
 export async function getAppointmentsForDoctor(doctorId: number): Promise<AppointmentResponse[]> {
   return getJson<AppointmentResponse[]>(`/appointments/doctor/${doctorId}`);
 }
